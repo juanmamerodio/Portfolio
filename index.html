@@ -3,176 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aura | Bolsos & Diseño Argentino</title>
-    <meta name="description" content="Diseño de autor, bolsos y carteras hechas a mano en Argentina.">
-    
-    <!-- Google Fonts: Inter (Muy usado en interfaces modernas tipo Google/Apple) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Tailwind CSS (vía CDN para no complicar con instalación) -->
+    <title>Quiero Alfajores - Campeones Mundiales</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     
-    <!-- Iconos Phosphor (Minimalistas y nítidos) -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
                     colors: {
-                        brand: {
-                            50: '#f9f9f9',
-                            100: '#efefef',
-                            500: '#1a1a1a', // Negro suave
-                            900: '#000000',
-                        }
+                        'brand-brown': '#3E2723',
+                        'brand-gold': '#D4AF37',
+                        'brand-cream': '#F5F5DC',
+                        'brand-light': '#FAF3E0',
+                        'brand-dark': '#1A120B'
                     },
-                    animation: {
-                        'float': 'float 6s ease-in-out infinite',
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-10px)' },
-                        }
+                    fontFamily: {
+                        serif: ['"Playfair Display"', 'serif'],
+                        sans: ['"Lato"', 'sans-serif'],
                     }
                 }
             }
         }
     </script>
-
     <style>
-        /* Estilos personalizados para animaciones tipo iOS */
-        body {
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-
-        .ios-glass {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(0,0,0,0.05);
-        }
-
-        /* Clases para el Scroll Reveal */
-        .reveal {
+        /* Animaciones personalizadas */
+        .fade-in-up {
             opacity: 0;
             transform: translateY(30px);
-            transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
         }
-
-        .reveal.active {
+        
+        .visible {
             opacity: 1;
             transform: translateY(0);
         }
 
-        .stagger-delay:nth-child(2) { transition-delay: 100ms; }
-        .stagger-delay:nth-child(3) { transition-delay: 200ms; }
-        
-        /* Botón con efecto elástico */
-        .btn-bounce {
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        .btn-bounce:active {
-            transform: scale(0.95);
+        .alfajor-float {
+            animation: float 6s ease-in-out infinite;
         }
 
-        /* Ocultar scrollbar en galería horizontal móvil */
-        .hide-scroll::-webkit-scrollbar {
-            display: none;
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
         }
-        .hide-scroll {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+
+        .gold-glow {
+            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        }
+        
+        /* Estilos para el scroll suave */
+        html {
+            scroll-behavior: smooth;
         }
     </style>
 </head>
-<body class="font-sans text-brand-500 bg-white selection:bg-black selection:text-white">
+<body class="bg-brand-light text-brand-brown font-sans overflow-x-hidden">
 
-    <!-- Navbar Sticky con efecto Glass -->
-    <nav class="fixed w-full z-50 ios-glass transition-all duration-300" id="navbar">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
-                <!-- Logo -->
-                <div class="flex-shrink-0 cursor-pointer" onclick="window.scrollTo(0,0)">
-                    <span class="text-2xl font-bold tracking-tight text-black">AURA.</span>
-                </div>
-                
-                <!-- Desktop Menu -->
-                <div class="hidden md:flex space-x-8 items-center">
-                    <a href="#coleccion" class="text-sm font-medium hover:text-gray-500 transition-colors">Colección</a>
-                    <a href="#nosotros" class="text-sm font-medium hover:text-gray-500 transition-colors">Filosofía</a>
-                    <a href="#testimonios" class="text-sm font-medium hover:text-gray-500 transition-colors">Clientes</a>
-                    <!-- CTA Botón -->
-                    <a href="https://zatimamayorista.com.ar/" target="_blank" class="btn-bounce bg-black text-white px-6 py-2.5 rounded-full text-sm font-medium hover:bg-gray-800 transition-colors shadow-lg shadow-black/20 flex items-center gap-2">
-                        Ver Tienda <i class="ph ph-arrow-right"></i>
-                    </a>
-                </div>
-
-                <!-- Mobile Menu Button -->
-                <div class="md:hidden flex items-center">
-                    <button id="mobile-menu-btn" class="text-black p-2 rounded-md">
-                        <i class="ph ph-list text-2xl"></i>
-                    </button>
-                </div>
+    <!-- Navbar -->
+    <nav class="fixed w-full z-50 transition-all duration-300 bg-brand-brown/95 backdrop-blur-sm text-brand-cream shadow-lg py-4">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+            <a href="#" class="font-serif text-2xl font-bold italic tracking-wider flex items-center gap-2">
+                Quiero <span class="text-xs not-italic bg-brand-gold text-brand-brown px-2 py-0.5 rounded-full font-sans font-bold">EST. 2023</span>
+            </a>
+            <div class="hidden md:flex gap-8 font-light tracking-wide text-sm uppercase">
+                <a href="#inicio" class="hover:text-brand-gold transition-colors">Inicio</a>
+                <a href="#historia" class="hover:text-brand-gold transition-colors">Nosotros</a>
+                <a href="#campeon" class="text-brand-gold font-bold hover:text-white transition-colors">El Campeón</a>
+                <a href="#contacto" class="hover:text-brand-gold transition-colors">Contacto</a>
             </div>
-        </div>
-
-        <!-- Mobile Menu Panel (Oculto por defecto) -->
-        <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-gray-100 absolute w-full shadow-xl">
-            <div class="px-4 pt-2 pb-6 space-y-2">
-                <a href="#coleccion" class="block px-3 py-3 text-base font-medium text-gray-900 rounded-lg hover:bg-gray-50">Colección</a>
-                <a href="#nosotros" class="block px-3 py-3 text-base font-medium text-gray-900 rounded-lg hover:bg-gray-50">Filosofía</a>
-                <a href="https://zatimamayorista.com.ar/" target="_blank" class="block mt-4 text-center w-full bg-black text-white px-3 py-3 rounded-xl font-medium">Ir a la Tienda</a>
-            </div>
+            <!-- Mobile Menu Icon (Visual only for this demo) -->
+            <button class="md:hidden">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
         </div>
     </nav>
 
-    <!-- 1. HERO SECTION -->
-    <section class="relative pt-32 pb-16 md:pt-48 md:pb-32 overflow-hidden">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                <div class="reveal">
-                    <div class="inline-block px-3 py-1 mb-6 text-xs font-semibold tracking-wider text-gray-500 uppercase bg-gray-100 rounded-full">
-                        Nueva Temporada 2025
-                    </div>
-                    <h1 class="text-5xl md:text-7xl font-bold text-black tracking-tight leading-[1.1] mb-6">
-                        Minimalismo <br>
-                        <span class="text-gray-400">que acompaña.</span>
-                    </h1>
-                    <p class="text-lg text-gray-600 mb-8 max-w-md leading-relaxed">
-                        Diseños pensados para tu día a día. Estética simple, materiales nobles y confección argentina con pasión por los detalles.
-                    </p>
-                    <div class="flex flex-col sm:flex-row gap-4">
-                        <a href="https://zatimamayorista.com.ar/" target="_blank" class="btn-bounce inline-flex justify-center items-center px-8 py-4 text-base font-medium text-white bg-black rounded-full hover:bg-gray-800 shadow-xl shadow-black/10 transition-all">
-                            Explorar Catálogo
-                        </a>
-                        <a href="#coleccion" class="btn-bounce inline-flex justify-center items-center px-8 py-4 text-base font-medium text-black bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-all">
-                            Ver Lookbook
-                        </a>
+    <!-- Hero Section -->
+    <section id="inicio" class="relative min-h-screen flex items-center justify-center overflow-hidden bg-brand-brown">
+        <!-- Background Overlay gradient -->
+        <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1558961363-fa8fdf82db35?q=80&w=2565&auto=format&fit=crop')] bg-cover bg-center opacity-20"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-brand-brown via-transparent to-brand-brown/80"></div>
+
+        <div class="container mx-auto px-6 relative z-10 text-center fade-in-up delay-100">
+            <div class="mb-6 flex justify-center">
+                <!-- Simulación de logo simple o copa -->
+                <i data-lucide="award" class="w-16 h-16 text-brand-gold mb-4"></i>
+            </div>
+            <h2 class="text-brand-gold font-sans font-bold tracking-[0.2em] text-sm uppercase mb-4">De Campana para el mundo</h2>
+            <h1 class="font-serif text-5xl md:text-7xl lg:text-8xl text-brand-cream mb-6 leading-tight">
+                El sabor de <br><span class="italic text-brand-gold gold-glow">la gloria</span>
+            </h1>
+            <p class="text-brand-cream/80 text-lg md:text-xl max-w-2xl mx-auto mb-10 font-light">
+                Descubrí el alfajor artesanal que conquistó al jurado y se coronó Campeón Mundial 2023. Una experiencia única en cada bocado.
+            </p>
+            
+            <div class="flex flex-col md:flex-row gap-4 justify-center">
+                <a href="https://api.whatsapp.com/send?phone=5493489350693" target="_blank" class="bg-brand-gold text-brand-brown px-8 py-3 rounded-full font-bold hover:bg-white transition-colors duration-300 flex items-center justify-center gap-2">
+                    <i data-lucide="message-circle" class="w-5 h-5"></i>
+                    Pedí el tuyo
+                </a>
+                <a href="#campeon" class="border border-brand-cream text-brand-cream px-8 py-3 rounded-full hover:bg-brand-cream hover:text-brand-brown transition-colors duration-300">
+                    Conocé al Campeón
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="historia" class="py-24 bg-brand-light">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row items-center gap-16">
+                <div class="w-full md:w-1/2 relative fade-in-up">
+                    <div class="absolute -top-4 -left-4 w-24 h-24 bg-brand-gold/20 rounded-full z-0"></div>
+                    <!-- Placeholder Image that represents artisan work -->
+                    <img src="https://scontent.cdninstagram.com/v/t51.75761-15/475873739_18035716475599580_1399407905316463665_n.webp?_nc_cat=102&ig_cache_key=MzU1ODQzNDE3Nzg3MzAyMzgxNw%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6InhwaWRzLjEwODB4MTA4MC5zZHIuQzMifQ%3D%3D&_nc_ohc=v1pYFOXnoCEQ7kNvwFyT33i&_nc_oc=AdkIHSU0LUkujcIpNPpcidAwRh4j0WO8k128MsLujuX3r2Dep8mWZ2qqzwLvbOLWw3YGtifmGgFgWK2hB6uSXV_R&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&_nc_gid=G0-TI3akdAraoYCB8p0eDQ&oh=00_AfgnWWTRxuEuVeyiZLPwo8dCX3O-uffCvs8E1q8rNShtEw&oe=693145E7" alt="Elaboración artesanal" class="rounded-lg shadow-2xl relative z-10 w-full object-cover h-[500px]">
+                    <div class="absolute -bottom-6 -right-6 bg-white p-6 shadow-xl rounded-lg z-20 max-w-xs hidden md:block">
+                        <p class="font-serif italic text-brand-brown text-xl">"Pasión en cada detalle."</p>
                     </div>
                 </div>
-                <div class="relative reveal stagger-delay">
-                    <!-- Imagen Principal con animación flotante -->
-                    <div class="relative rounded-[2.5rem] overflow-hidden shadow-2xl animate-float">
-                        <img src="https://images.unsplash.com/photo-1591561954557-26941169b49e?q=80&w=987&auto=format&fit=crop" alt="Bolso de cuero minimalista" class="w-full h-auto object-cover transform hover:scale-105 transition-transform duration-700">
-                    </div>
-                    <!-- Badge Flotante -->
-                    <div class="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl border border-gray-100 hidden md:block animate-float" style="animation-delay: 1s;">
-                        <div class="flex items-center gap-3">
-                            <div class="bg-green-100 p-2 rounded-full text-green-600">
-                                <i class="ph-fill ph-check-circle text-xl"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs text-gray-500 font-medium">Stock disponible</p>
-                                <p class="text-sm font-bold text-black">Envío Inmediato</p>
-                            </div>
+                
+                <div class="w-full md:w-1/2 fade-in-up delay-200">
+                    <h3 class="text-brand-gold font-bold uppercase tracking-widest mb-2">Nuestra Historia</h3>
+                    <h2 class="font-serif text-4xl md:text-5xl text-brand-brown mb-6">Artesanos de Campana</h2>
+                    <p class="text-gray-600 mb-6 leading-relaxed">
+                        Somos un emprendimiento familiar nacido en el corazón de Campana, Buenos Aires. En <strong>Quiero</strong>, no solo hacemos alfajores; creamos momentos. Cada pieza es elaborada a mano, respetando los tiempos y utilizando materias primas de la más alta calidad.
+                    </p>
+                    <p class="text-gray-600 mb-8 leading-relaxed">
+                        Nuestro compromiso con la excelencia nos llevó a competir con los mejores, demostrando que con pasión y dedicación, se puede llegar a lo más alto.
+                    </p>
+                    
+                    <div class="grid grid-cols-3 gap-4 border-t border-brand-brown/10 pt-8">
+                        <div class="text-center">
+                            <i data-lucide="map-pin" class="w-6 h-6 text-brand-brown mx-auto mb-2"></i>
+                            <span class="text-sm font-bold block">Maipú 915</span>
+                            <span class="text-xs text-gray-500">Campana</span>
+                        </div>
+                        <div class="text-center border-l border-brand-brown/10">
+                            <i data-lucide="award" class="w-6 h-6 text-brand-gold mx-auto mb-2"></i>
+                            <span class="text-sm font-bold block">Mundial 2023</span>
+                            <span class="text-xs text-gray-500">Mejor Alfajor</span>
+                        </div>
+                        <div class="text-center border-l border-brand-brown/10">
+                            <i data-lucide="heart" class="w-6 h-6 text-brand-brown mx-auto mb-2"></i>
+                            <span class="text-sm font-bold block">100%</span>
+                            <span class="text-xs text-gray-500">Artesanal</span>
                         </div>
                     </div>
                 </div>
@@ -180,269 +157,148 @@
         </div>
     </section>
 
-    <!-- 2. VALUE PROPOSITION (Iconos estilo Google) -->
-    <section class="py-16 bg-brand-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
-                <!-- Item 1 -->
-                <div class="reveal bg-white p-8 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300">
-                    <div class="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center text-2xl mb-4 mx-auto md:mx-0">
-                        <i class="ph ph-sketch-logo"></i>
-                    </div>
-                    <h3 class="text-xl font-bold mb-2">Diseño Atemporal</h3>
-                    <p class="text-gray-500 text-sm leading-relaxed">
-                        No seguimos modas pasajeras. Creamos piezas que podés usar hoy y dentro de 5 años.
-                    </p>
-                </div>
-                <!-- Item 2 -->
-                <div class="reveal stagger-delay bg-white p-8 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300">
-                    <div class="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center text-2xl mb-4 mx-auto md:mx-0">
-                        <i class="ph ph-hand-heart"></i>
-                    </div>
-                    <h3 class="text-xl font-bold mb-2">Hecho en Argentina</h3>
-                    <p class="text-gray-500 text-sm leading-relaxed">
-                        Apoyamos la industria local. Cada costura está revisada por manos expertas de acá.
-                    </p>
-                </div>
-                <!-- Item 3 -->
-                <div class="reveal stagger-delay bg-white p-8 rounded-3xl shadow-sm hover:shadow-md transition-shadow duration-300">
-                    <div class="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center text-2xl mb-4 mx-auto md:mx-0">
-                        <i class="ph ph-truck"></i>
-                    </div>
-                    <h3 class="text-xl font-bold mb-2">Envíos a todo el país</h3>
-                    <p class="text-gray-500 text-sm leading-relaxed">
-                        Estés donde estés, te llega. Embalaje seguro para que recibas una experiencia, no solo un paquete.
-                    </p>
-                </div>
-            </div>
+    <!-- The Champion Section (Dark Mode feel) -->
+    <section id="campeon" class="py-24 bg-brand-dark text-brand-cream relative overflow-hidden">
+        <!-- Decorative subtle football stars reference -->
+        <div class="absolute top-10 right-10 flex gap-2 opacity-20">
+            <i data-lucide="star" class="w-8 h-8 fill-current text-brand-gold"></i>
+            <i data-lucide="star" class="w-8 h-8 fill-current text-brand-gold mt-4"></i>
+            <i data-lucide="star" class="w-8 h-8 fill-current text-brand-gold"></i>
         </div>
-    </section>
 
-    <!-- 3. GALERÍA / LOOKBOOK -->
-    <section id="coleccion" class="py-20 bg-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col md:flex-row justify-between items-end mb-12 reveal">
-                <div>
-                    <span class="text-sm font-bold text-gray-400 uppercase tracking-widest">Inspiración</span>
-                    <h2 class="text-3xl md:text-4xl font-bold mt-2">Nuestros Favoritos</h2>
-                </div>
-                <a href="https://zatimamayorista.com.ar/" target="_blank" class="hidden md:inline-flex items-center text-sm font-semibold hover:text-gray-600 transition-colors mt-4 md:mt-0 group">
-                    Ver todos los modelos <i class="ph ph-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
-                </a>
-            </div>
-
-            <!-- Grid de imágenes asimétrico -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Card 1 -->
-                <div class="reveal group relative overflow-hidden rounded-3xl aspect-[4/5] cursor-pointer">
-                    <img src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=900&auto=format&fit=crop" alt="Cartera Tote" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-8">
-                        <p class="text-white font-bold text-xl">Colección Urbana</p>
-                        <p class="text-gray-200 text-sm">Ideal para la oficina</p>
-                    </div>
-                </div>
-
-                <!-- Card 2 -->
-                <div class="reveal stagger-delay group relative overflow-hidden rounded-3xl aspect-[4/5] cursor-pointer lg:mt-12">
-                    <img src="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?q=80&w=876&auto=format&fit=crop" alt="Bolso de mano" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-8">
-                        <p class="text-white font-bold text-xl">Línea Noche</p>
-                        <p class="text-gray-200 text-sm">Pequeños detalles</p>
-                    </div>
-                </div>
-
-                <!-- Card 3 -->
-                <div class="reveal stagger-delay group relative overflow-hidden rounded-3xl aspect-[4/5] cursor-pointer">
-                    <img src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=2069&auto=format&fit=crop" alt="Mochila cuero" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-8">
-                        <p class="text-white font-bold text-xl">Mochilas</p>
-                        <p class="text-gray-200 text-sm">Comodidad y estilo</p>
-                    </div>
-                </div>
+        <div class="container mx-auto px-6 text-center relative z-10">
+            <div class="mb-4 inline-block fade-in-up">
+                <span class="bg-brand-gold text-brand-dark px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Edición Ganadora</span>
             </div>
             
-            <div class="mt-8 text-center md:hidden">
-                <a href="https://zatimamayorista.com.ar/" target="_blank" class="btn-bounce inline-flex items-center justify-center px-6 py-3 border border-black rounded-full text-black font-medium text-sm">
-                    Ir a la tienda
+            <h2 class="font-serif text-5xl md:text-7xl mb-4 fade-in-up delay-100">El Campeón</h2>
+            <p class="text-xl md:text-2xl font-light text-brand-gold mb-12 fade-in-up delay-200">Homenaje a la Gloria Eterna 🇦🇷</p>
+
+            <div class="relative max-w-md mx-auto aspect-square mb-12 fade-in-up delay-300">
+                <!-- Circular background glow -->
+                <div class="absolute inset-0 bg-brand-gold/20 rounded-full blur-3xl transform scale-75"></div>
+                <!-- Alfajor Image (Placeholder for the actual product) -->
+                <!-- Ideally this would be a PNG with transparent background of the specific alfajor -->
+                <img src="https://scontent.cdninstagram.com/v/t51.75761-15/475632817_18035439764599580_4697985320331213094_n.webp?_nc_cat=111&ig_cache_key=MzU1NjQzMzY4MTI1MjQwMTY1OQ%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6InhwaWRzLjEwODB4MTA4MC5zZHIuQzMifQ%3D%3D&_nc_ohc=qd-bZPNkYXwQ7kNvwFLcxQF&_nc_oc=AdkKCYIjvjPRuxHENoYR02YzBIQ0avnFUDVn-Rwlu20_Lm7Ct0SqD3onnEDhBUy478JMZWT1qAmJH1CmQBfLJbhq&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&_nc_gid=G0-TI3akdAraoYCB8p0eDQ&oh=00_Afi_hSu9JXPAOLPYkqGGSooXJStDdvDHUBWhp-OMN0TtDg&oe=693151BE" onerror="this.src='https://images.unsplash.com/photo-1558326567-98ae2405596b?q=80&w=2526&auto=format&fit=crop'" alt="Alfajor Campeón Mundial" class="relative z-10 w-full h-full object-cover rounded-full border-4 border-brand-gold/30 shadow-[0_0_50px_rgba(212,175,55,0.3)] alfajor-float">
+                
+                <!-- Badge floating -->
+                <div class="absolute -right-4 top-10 bg-white text-brand-brown p-4 rounded-full shadow-lg z-20 animate-bounce" style="animation-duration: 3s;">
+                    <span class="block text-2xl font-bold font-serif">#1</span>
+                    <span class="text-xs uppercase font-bold">Mundial</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto text-left md:text-center fade-in-up delay-400">
+                <div class="p-6 border border-brand-gold/20 rounded-lg bg-brand-brown/30 backdrop-blur-sm">
+                    <h4 class="text-brand-gold font-bold text-lg mb-2">Triple Tentación</h4>
+                    <p class="text-sm text-gray-300">Tres capas de la masa más suave que vas a probar en tu vida.</p>
+                </div>
+                <div class="p-6 border border-brand-gold/20 rounded-lg bg-brand-brown/30 backdrop-blur-sm">
+                    <h4 class="text-brand-gold font-bold text-lg mb-2">Dulce de Leche</h4>
+                    <p class="text-sm text-gray-300">Abundante corazón de dulce de leche premium argentino.</p>
+                </div>
+                <div class="p-6 border border-brand-gold/20 rounded-lg bg-brand-brown/30 backdrop-blur-sm">
+                    <h4 class="text-brand-gold font-bold text-lg mb-2">Cobertura Real</h4>
+                    <p class="text-sm text-gray-300">Bañado en chocolate semiamargo de alta pureza.</p>
+                </div>
+            </div>
+
+            <div class="mt-12 fade-in-up delay-500">
+                <a href="https://api.whatsapp.com/send?phone=5493489350693&text=Hola!%20Quiero%20probar%20el%20alfajor%20campeón." target="_blank" class="inline-flex items-center gap-3 bg-brand-gold hover:bg-white text-brand-dark px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-brand-gold/20">
+                    Quiero probarlo
+                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
                 </a>
             </div>
         </div>
     </section>
 
-    <!-- 4. ABOUT / STORYTELLING -->
-    <section id="nosotros" class="py-20 bg-black text-white rounded-t-[3rem] md:rounded-[4rem] mx-2 md:mx-4 mb-4">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-                <div class="order-2 md:order-1 reveal">
-                    <img src="https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=2071&auto=format&fit=crop" alt="Taller de costura" class="rounded-3xl shadow-2xl opacity-90">
-                </div>
-                <div class="order-1 md:order-2 reveal">
-                    <h2 class="text-3xl md:text-5xl font-bold mb-6">Más que un accesorio, <br>una historia.</h2>
-                    <p class="text-gray-400 text-lg leading-relaxed mb-6">
-                        Todo empezó con la idea de crear algo simple pero duradero. En un mundo donde todo es descartable, en **AURA** apostamos por lo que perdura.
-                    </p>
-                    <p class="text-gray-400 text-lg leading-relaxed mb-8">
-                        Seleccionamos los materiales uno por uno, trabajamos con talleres locales y cuidamos que cada cierre, cada correa y cada costura esté perfecta antes de salir hacia tu casa.
-                    </p>
-                    <div class="flex items-center gap-4">
-                        <div class="flex -space-x-4">
-                            <img class="w-10 h-10 rounded-full border-2 border-black" src="https://randomuser.me/api/portraits/women/68.jpg" alt="">
-                            <img class="w-10 h-10 rounded-full border-2 border-black" src="https://randomuser.me/api/portraits/men/32.jpg" alt="">
-                            <img class="w-10 h-10 rounded-full border-2 border-black" src="https://randomuser.me/api/portraits/women/44.jpg" alt="">
+    <!-- Location & Contact -->
+    <section id="contacto" class="py-24 bg-brand-cream relative">
+        <div class="container mx-auto px-6">
+            <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row fade-in-up">
+                
+                <div class="w-full md:w-1/2 p-10 flex flex-col justify-center bg-brand-brown text-brand-cream">
+                    <h3 class="font-serif text-3xl mb-6">Visitá nuestro local</h3>
+                    <div class="space-y-6">
+                        <div class="flex items-start gap-4">
+                            <i data-lucide="map-pin" class="w-6 h-6 text-brand-gold shrink-0 mt-1"></i>
+                            <div>
+                                <h4 class="font-bold text-brand-gold">Dirección</h4>
+                                <p>Maipú 915, Campana</p>
+                                <p class="text-sm text-gray-400">Buenos Aires, Argentina</p>
+                            </div>
                         </div>
-                        <span class="text-sm font-medium text-gray-300">+2.000 clientes felices</span>
+                        <div class="flex items-start gap-4">
+                            <i data-lucide="clock" class="w-6 h-6 text-brand-gold shrink-0 mt-1"></i>
+                            <div>
+                                <h4 class="font-bold text-brand-gold">Horarios</h4>
+                                <p>Martes a Domingos</p>
+                                <p class="text-sm text-gray-400">Consultar feriados en Instagram</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <i data-lucide="instagram" class="w-6 h-6 text-brand-gold shrink-0 mt-1"></i>
+                            <div>
+                                <h4 class="font-bold text-brand-gold">Seguinos</h4>
+                                <a href="https://www.instagram.com/alfajores.quiero/" target="_blank" class="hover:underline">@alfajores.quiero</a>
+                            </div>
+                        </div>
                     </div>
+                    
+                    <div class="mt-10 pt-8 border-t border-white/10">
+                        <p class="italic text-sm text-center">"Hacé tu pedido por WhatsApp y pasá a buscar la gloria."</p>
+                    </div>
+                </div>
+
+                <div class="w-full md:w-1/2 bg-gray-200 min-h-[300px] relative">
+                    <!-- Embed Google Maps Placeholder functionality -->
+                    <iframe 
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3294.045686884617!2d-58.9618!3d-34.1668!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bb0d97b0a8c2bf%3A0x123456789abcdef!2sMaip%C3%BA%20915%2C%20Campana%2C%20Provincia%20de%20Buenos%20Aires!5e0!3m2!1ses!2sar!4v1620000000000!5m2!1ses!2sar" 
+                        width="100%" 
+                        height="100%" 
+                        style="border:0;" 
+                        allowfullscreen="" 
+                        loading="lazy" 
+                        class="absolute inset-0 grayscale hover:grayscale-0 transition-all duration-500">
+                    </iframe>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- 5. SOCIAL PROOF / TESTIMONIOS -->
-    <section id="testimonios" class="py-20 bg-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-16 reveal">
-                <h2 class="text-3xl font-bold">Lo que dicen ellas</h2>
-                <p class="text-gray-500 mt-2">La confianza de quienes ya nos eligieron</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <!-- Review 1 -->
-                <div class="reveal bg-gray-50 p-8 rounded-3xl">
-                    <div class="text-yellow-400 text-sm mb-4">★★★★★</div>
-                    <p class="text-gray-700 mb-6 italic">"La calidad del cuero es increíble. Me sorprendió lo rápido que llegó el envío a Córdoba. Súper recomendado."</p>
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">S</div>
-                        <div>
-                            <p class="text-sm font-bold">Sofía M.</p>
-                            <p class="text-xs text-gray-500">Compró hace 2 semanas</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Review 2 -->
-                <div class="reveal stagger-delay bg-gray-50 p-8 rounded-3xl">
-                    <div class="text-yellow-400 text-sm mb-4">★★★★★</div>
-                    <p class="text-gray-700 mb-6 italic">"Buscaba algo simple para la facu que no se rompa a la semana. Es divina y entra todo perfecto. ¡Gracias!"</p>
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">C</div>
-                        <div>
-                            <p class="text-sm font-bold">Camila R.</p>
-                            <p class="text-xs text-gray-500">Compró hace 1 mes</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Review 3 -->
-                <div class="reveal stagger-delay bg-gray-50 p-8 rounded-3xl">
-                    <div class="text-yellow-400 text-sm mb-4">★★★★★</div>
-                    <p class="text-gray-700 mb-6 italic">"Atención de diez. Tuve una duda con las medidas, me respondieron al toque por Instagram. El bolso es un sueño."</p>
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">V</div>
-                        <div>
-                            <p class="text-sm font-bold">Valeria T.</p>
-                            <p class="text-xs text-gray-500">Compró hace 3 días</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- FOOTER -->
-    <footer class="bg-white border-t border-gray-100 py-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-                <div class="col-span-1 md:col-span-2">
-                    <span class="text-2xl font-bold tracking-tight text-black">AURA.</span>
-                    <p class="mt-4 text-gray-500 max-w-xs text-sm">
-                        Diseño argentino pensado para durar. Nutriendo tu estilo con simplicidad y elegancia.
-                    </p>
-                    <div class="flex gap-4 mt-6">
-                        <a href="#" class="text-gray-400 hover:text-black transition-colors"><i class="ph-fill ph-instagram-logo text-2xl"></i></a>
-                        <a href="#" class="text-gray-400 hover:text-black transition-colors"><i class="ph-fill ph-facebook-logo text-2xl"></i></a>
-                        <a href="#" class="text-gray-400 hover:text-black transition-colors"><i class="ph-fill ph-whatsapp-logo text-2xl"></i></a>
-                    </div>
-                </div>
-                <div>
-                    <h4 class="font-bold mb-4 text-sm uppercase tracking-wide">Navegación</h4>
-                    <ul class="space-y-2 text-sm text-gray-500">
-                        <li><a href="#" class="hover:text-black transition-colors">Inicio</a></li>
-                        <li><a href="#coleccion" class="hover:text-black transition-colors">Colección</a></li>
-                        <li><a href="#nosotros" class="hover:text-black transition-colors">Nosotros</a></li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="font-bold mb-4 text-sm uppercase tracking-wide">Ayuda</h4>
-                    <ul class="space-y-2 text-sm text-gray-500">
-                        <li><a href="#" class="hover:text-black transition-colors">Envíos</a></li>
-                        <li><a href="#" class="hover:text-black transition-colors">Cambios</a></li>
-                        <li><a href="#" class="hover:text-black transition-colors">Contacto</a></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="border-t border-gray-100 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-                <p class="text-xs text-gray-400">© 2025 Aura Bags. Hecho en Argentina.</p>
-                <div class="flex items-center gap-2 text-xs text-gray-400">
-                    <span>Sitio seguro</span>
-                    <i class="ph-fill ph-lock-key"></i>
-                </div>
+    <footer class="bg-brand-brown text-brand-light py-8 border-t border-white/10">
+        <div class="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="font-serif text-xl font-bold italic">Quiero</div>
+            <p class="text-sm text-brand-cream/60">© 2024 Quiero Alfajores Artesanales. Todos los derechos reservados.</p>
+            <div class="flex gap-4">
+                <a href="https://www.instagram.com/alfajores.quiero/" class="hover:text-brand-gold transition-colors"><i data-lucide="instagram" class="w-5 h-5"></i></a>
+                <a href="https://api.whatsapp.com/send?phone=5493489350693" class="hover:text-brand-gold transition-colors"><i data-lucide="phone" class="w-5 h-5"></i></a>
             </div>
         </div>
     </footer>
 
-    <!-- Scripts simples para interacciones -->
     <script>
-        // 1. Mobile Menu Toggle
-        const btn = document.getElementById('mobile-menu-btn');
-        const menu = document.getElementById('mobile-menu');
-        const icon = btn.querySelector('i');
+        // Inicializar iconos
+        lucide.createIcons();
 
-        btn.addEventListener('click', () => {
-            menu.classList.toggle('hidden');
-            if(menu.classList.contains('hidden')){
-                icon.classList.remove('ph-x');
-                icon.classList.add('ph-list');
-            } else {
-                icon.classList.remove('ph-list');
-                icon.classList.add('ph-x');
-            }
-        });
-
-        // 2. Cerrar menú al hacer click en un link
-        menu.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', () => {
-                menu.classList.add('hidden');
-                icon.classList.remove('ph-x');
-                icon.classList.add('ph-list');
-            });
-        });
-
-        // 3. Scroll Reveal Animation (Intersection Observer)
+        // Intersection Observer para las animaciones on-scroll
         const observerOptions = {
-            threshold: 0.1,
-            rootMargin: "0px 0px -50px 0px"
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.1
         };
 
-        const observer = new IntersectionObserver((entries) => {
+        const observer = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    entry.target.classList.add('active');
+                    entry.target.classList.add('visible');
+                    observer.unobserve(entry.target); // Dejar de observar una vez animado
                 }
             });
         }, observerOptions);
 
-        document.querySelectorAll('.reveal').forEach(el => {
-            observer.observe(el);
-        });
-
-        // 4. Smooth Scroll para links internos (aunque CSS scroll-behavior: smooth funciona, esto es más robusto en Safari viejo)
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
-            });
+        document.querySelectorAll('.fade-in-up').forEach((element) => {
+            observer.observe(element);
         });
     </script>
 </body>
