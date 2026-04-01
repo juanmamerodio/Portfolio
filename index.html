@@ -1,461 +1,358 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hotel Nova iOS</title>
-    <!-- Tailwind CSS para el diseño -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Nova Hotels | Experiencia Premium</title>
+    <!-- Tailwind + Lucide + LocalForage (DB avanzada) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons para los iconos -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
     <style>
-        /* Ajustes específicos estilo iOS */
+        * { -webkit-tap-highlight-color: transparent; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
-        /* Ocultar scrollbar pero permitir scroll */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Animaciones suaves */
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        .slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        
+        /* Animaciones mejoradas */
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1); }
+        .slide-up { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+        .scale-in { animation: scaleIn 0.2s ease-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes scaleIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        /* efecto shimmer para carga */
+        .shimmer { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        
+        /* ripple effect botones */
+        .btn-ripple { position: relative; overflow: hidden; transition: all 0.2s; }
+        .btn-ripple:active { transform: scale(0.97); }
+        
+        /* badge glow */
+        .glow-badge { box-shadow: 0 0 8px rgba(59,130,246,0.4); }
+        
+        /* transiciones suaves */
+        .card-hover { transition: all 0.25s ease; }
+        .card-hover:active { transform: scale(0.98); }
     </style>
 </head>
-<body class="bg-gray-50 font-sans selection:bg-blue-200 antialiased no-scrollbar">
+<body class="bg-gray-50 font-sans antialiased no-scrollbar selection:bg-blue-200">
 
-    <!-- Contenedor principal donde se dibuja la app -->
-    <div id="app-root"></div>
+    <div id="app-root" class="min-h-screen relative"></div>
 
     <script type="module">
-        // --- 1. IMPORTACIONES DE FIREBASE (Módulos CDN para HTML puro) ---
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // --- 2. BASE DE DATOS LOCAL Y ESTADO ---
+        // --------------------------------------------------------------
+        //  SISTEMA COMPLETO: Home, Reservas, Pago Anticipado (CBU aleatorio)
+        //  Base de datos: IndexedDB (localforage) + fallback a localStorage
+        //  Soporte multi-idioma (Español/Inglés)
+        //  Animaciones fluidas, corrección de bugs, persistencia total
+        // --------------------------------------------------------------
+        
+        import { createIcons, icons } from 'https://unpkg.com/lucide@latest/dist/lucide.esm.js';
+        window.lucideIcons = icons;
+        
+        // ---------- 1. CONFIGURACIÓN IDIOMAS ----------
+        const translations = {
+            es: {
+                home: "Inicio", explore: "Explorar", bookings: "Reservas", profile: "Perfil",
+                welcome: "Bienvenido a Nova Hotels", slogan: "Elegancia y confort en cada estancia",
+                featured: "Servicios Premium", wifi: "WiFi Ultra Rápido", spa: "Spa & Wellness", restaurant: "Restaurante Gourmet",
+                exploreRooms: "Nuestras habitaciones", payEarly: "Pagar anticipadamente", cancelRes: "Cancelar reserva",
+                payNow: "Pagar ahora", paid: "Pagado", unpaid: "Pendiente", randomCbu: "CBU Aleatorio",
+                confirmPayment: "Confirmar Pago", simulatingPayment: "Simular transferencia", totalToPay: "Total a pagar",
+                paymentSuccess: "Pago registrado con éxito", paymentFailed: "Error en pago", cbuInfo: "CBU para transferencia",
+                checkIn: "Entrada", checkOut: "Salida", guestName: "Nombre completo", reserve: "Reservar",
+                available: "Disponible", occupied: "Ocupado", invalidDates: "Fechas inválidas",
+                noBookings: "No tenés reservas activas", bookNow: "Reservar ahora", logout: "Cerrar Sesión",
+                loginGoogle: "Continuar con Google", orContinue: "o continuar como invitado", 
+                changeLanguage: "Idioma", nights: "noches", cbuRandom: "CBU generado"
+            },
+            en: {
+                home: "Home", explore: "Explore", bookings: "My Bookings", profile: "Profile",
+                welcome: "Welcome to Nova Hotels", slogan: "Elegance and comfort in every stay",
+                featured: "Premium Services", wifi: "Ultra Fast WiFi", spa: "Spa & Wellness", restaurant: "Gourmet Restaurant",
+                exploreRooms: "Our Rooms", payEarly: "Pay in advance", cancelRes: "Cancel booking",
+                payNow: "Pay now", paid: "Paid", unpaid: "Pending", randomCbu: "Random CBU",
+                confirmPayment: "Confirm Payment", simulatingPayment: "Simulate transfer", totalToPay: "Total to pay",
+                paymentSuccess: "Payment successfully recorded", paymentFailed: "Payment failed", cbuInfo: "CBU for transfer",
+                checkIn: "Check-in", checkOut: "Check-out", guestName: "Full name", reserve: "Book now",
+                available: "Available", occupied: "Occupied", invalidDates: "Invalid dates",
+                noBookings: "You have no active bookings", bookNow: "Book now", logout: "Logout",
+                loginGoogle: "Continue with Google", orContinue: "or continue as guest",
+                changeLanguage: "Language", nights: "nights", cbuRandom: "Generated CBU"
+            }
+        };
+        
+        let currentLang = localStorage.getItem('app_lang') || 'es';
+        function t(key) { return translations[currentLang][key] || key; }
+        
+        // ---------- 2. DATOS DE HABITACIONES ----------
         const HOTEL_ROOMS = [
-            { id: '101', name: 'Suite Presidencial', type: 'Suite', capacity: '4 personas', price: 250, image: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&q=80&w=400' },
-            { id: '102', name: 'Doble Premium', type: 'Doble', capacity: '2 personas', price: 120, image: 'https://images.unsplash.com/photo-1560185016-3ae1746b412e?auto=format&fit=crop&q=80&w=400' },
-            { id: '103', name: 'Familiar Deluxe', type: 'Familiar', capacity: '6 personas', price: 180, image: 'https://images.unsplash.com/photo-1582719478250-c8940994cb4e?auto=format&fit=crop&q=80&w=400' },
-            { id: '201', name: 'Simple Business', type: 'Simple', capacity: '1 persona', price: 80, image: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&q=80&w=400' },
+            { id: '101', name: { es: 'Suite Presidencial', en: 'Presidential Suite' }, type: 'Suite', capacity: '4 personas', price: 250, image: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&q=80&w=400' },
+            { id: '102', name: { es: 'Doble Premium', en: 'Premium Double' }, type: 'Doble', capacity: '2 personas', price: 120, image: 'https://images.unsplash.com/photo-1560185016-3ae1746b412e?auto=format&fit=crop&q=80&w=400' },
+            { id: '103', name: { es: 'Familiar Deluxe', en: 'Family Deluxe' }, type: 'Familiar', capacity: '6 personas', price: 180, image: 'https://images.unsplash.com/photo-1582719478250-c8940994cb4e?auto=format&fit=crop&q=80&w=400' },
+            { id: '201', name: { es: 'Simple Business', en: 'Business Single' }, type: 'Simple', capacity: '1 persona', price: 80, image: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&q=80&w=400' },
         ];
-
+        
         const today = new Date().toISOString().split('T')[0];
         const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-
-        // Objeto global para mantener el estado de la aplicación
+        
+        // ---------- 3. ESTADO GLOBAL ----------
         let state = {
-            user: null,
-            isSimulatedUser: false,
+            user: null,           // { uid, displayName, email, isGuest }
             bookings: [],
-            activeTab: 'explore',
+            activeTab: 'home',    // home, explore, bookings, profile
             loading: true,
             searchDates: { checkIn: today, checkOut: tomorrow },
             bookingModal: { isOpen: false, room: null },
             guestName: '',
-            isSubmitting: false
+            isSubmitting: false,
+            paymentModal: { open: false, bookingId: null, cbu: '', amount: 0 },
+            toastMsg: null
         };
-
-        // --- 3. CONFIGURACIÓN FIREBASE / LOCAL FALLBACK ---
-        let app, auth, db;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'hotel-nova-ios';
-        let usingRealFirebase = false;
-
-        try {
-            const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : 'null';
-            if (configStr !== 'null') {
-                app = initializeApp(JSON.parse(configStr));
-                auth = getAuth(app);
-                db = getFirestore(app);
-                usingRealFirebase = true;
-            }
-        } catch (e) {
-            console.log("Iniciando en modo local (sin base de datos en la nube).");
+        
+        // helpers
+        function showToast(message, type = 'success') {
+            state.toastMsg = { message, type };
+            renderApp();
+            setTimeout(() => { state.toastMsg = null; renderApp(); }, 2800);
         }
-
-        // --- 4. LÓGICA DE NEGOCIO ---
-        const isLoggedIn = () => state.user && (!state.user.isAnonymous || state.isSimulatedUser);
-
-        const getRoomStatus = (roomId) => {
-            const { checkIn, checkOut } = state.searchDates;
+        
+        // ----- 4. BASE DE DATOS LOCAL (IndexedDB + localforage) -----
+        const dbBookings = localforage.createInstance({ name: "NovaHotel", storeName: "bookings" });
+        const dbUser = localforage.createInstance({ name: "NovaHotel", storeName: "user" });
+        
+        async function loadUser() {
+            let user = await dbUser.getItem('currentUser');
+            if (!user) {
+                user = { uid: 'guest_' + Math.random().toString(36).substr(2, 8), displayName: 'Viajero', email: 'guest@novahotel.com', isGuest: true, avatar: '👤' };
+                await dbUser.setItem('currentUser', user);
+            }
+            return user;
+        }
+        
+        async function saveUser(user) {
+            await dbUser.setItem('currentUser', user);
+        }
+        
+        async function loadBookings(userId) {
+            const allBookings = await dbBookings.getItem('all_bookings') || [];
+            const userBookings = allBookings.filter(b => b.userId === userId);
+            return userBookings;
+        }
+        
+        async function saveAllBookings(bookings) {
+            await dbBookings.setItem('all_bookings', bookings);
+        }
+        
+        async function addBookingToDB(booking) {
+            const all = await dbBookings.getItem('all_bookings') || [];
+            const newBooking = { ...booking, id: Date.now().toString() + Math.random().toString(36).substr(2, 4) };
+            all.push(newBooking);
+            await saveAllBookings(all);
+            return newBooking;
+        }
+        
+        async function updateBookingInDB(bookingId, updates) {
+            let all = await dbBookings.getItem('all_bookings') || [];
+            const index = all.findIndex(b => b.id === bookingId);
+            if (index !== -1) {
+                all[index] = { ...all[index], ...updates };
+                await saveAllBookings(all);
+                return true;
+            }
+            return false;
+        }
+        
+        async function deleteBookingFromDB(bookingId) {
+            let all = await dbBookings.getItem('all_bookings') || [];
+            const filtered = all.filter(b => b.id !== bookingId);
+            await saveAllBookings(filtered);
+            return true;
+        }
+        
+        // refresh state desde DB
+        async function refreshData() {
+            if (!state.user) return;
+            const freshBookings = await loadBookings(state.user.uid);
+            state.bookings = freshBookings.sort((a,b) => new Date(a.checkIn) - new Date(b.checkIn));
+            state.loading = false;
+            renderApp();
+        }
+        
+        // ---------- 5. LOGICA DE DISPONIBILIDAD ----------
+        function getRoomStatus(roomId, checkIn, checkOut, excludeBookingId = null) {
             if (!checkIn || !checkOut || checkIn >= checkOut) return { available: false, reason: 'invalid' };
-
-            const overlapping = state.bookings.find(b => b.roomId === roomId && b.checkIn < checkOut && b.checkOut > checkIn);
-            return overlapping ? { available: false, bookedBy: overlapping.guestName } : { available: true };
-        };
-
-        const fetchBookings = () => {
-            if (!state.user || !usingRealFirebase) return;
-            const bookingsRef = collection(db, 'artifacts', appId, 'public', 'data', 'hotel_bookings');
-            onSnapshot(bookingsRef, (snapshot) => {
-                state.bookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                state.loading = false;
-                renderApp();
-            }, (err) => {
-                console.error(err);
-                state.loading = false;
-                renderApp();
-            });
-        };
-
-        // --- 5. FUNCIONES GLOBALES PARA EVENTOS HTML ---
+            const overlapping = state.bookings.find(b => 
+                b.roomId === roomId && 
+                b.id !== excludeBookingId &&
+                b.checkIn < checkOut && 
+                b.checkOut > checkIn
+            );
+            if (overlapping) return { available: false, bookedBy: overlapping.guestName };
+            return { available: true };
+        }
+        
+        // ---------- 6. NAVEGACIÓN Y MODALES ----------
         window.setTab = (tab) => { state.activeTab = tab; renderApp(); };
         window.updateDate = (field, value) => { state.searchDates[field] = value; renderApp(); };
         window.updateName = (value) => { state.guestName = value; renderApp(); };
         window.openModal = (roomId) => {
-            state.bookingModal.room = HOTEL_ROOMS.find(r => r.id === roomId);
-            state.bookingModal.isOpen = true;
-            renderApp();
-        };
-        window.closeModal = () => {
-            if (state.isSubmitting) return;
-            state.bookingModal = { isOpen: false, room: null };
+            const room = HOTEL_ROOMS.find(r => r.id === roomId);
+            state.bookingModal = { isOpen: true, room };
             state.guestName = '';
             renderApp();
         };
-
-        window.handleGoogleLogin = async () => {
-            if (usingRealFirebase) {
-                try {
-                    const provider = new GoogleAuthProvider();
-                    await signInWithPopup(auth, provider);
-                } catch (error) {
-                    // Si el navegador bloquea el popup, simulamos un login para que igual puedan probarlo
-                    state.isSimulatedUser = true;
-                    state.user = { uid: 'simulated-uid', displayName: 'Usuario Experto', email: 'hola@ascender.uno' };
-                    renderApp();
-                }
-            } else {
-                state.isSimulatedUser = true;
-                state.user = { uid: 'local-uid', displayName: 'Admin Local', email: 'admin@local.com' };
-                renderApp();
-            }
+        window.closeModal = () => { if (!state.isSubmitting) { state.bookingModal = { isOpen: false, room: null }; renderApp(); } };
+        
+        // Cancelar con confirmación
+        window.handleCancelBooking = async (bookingId) => {
+            if (!confirm(t('cancelRes') + "? Esta acción no se puede deshacer.")) return;
+            await deleteBookingFromDB(bookingId);
+            await refreshData();
+            showToast("✅ Reserva cancelada", "success");
         };
-
-        window.handleLogout = async () => {
-            if (state.isSimulatedUser || !usingRealFirebase) {
-                state.isSimulatedUser = false;
-                state.user = null;
-                state.activeTab = 'explore';
-                renderApp();
-            } else {
-                await signOut(auth);
-                signInAnonymously(auth); // Volvemos a anónimo
-                state.activeTab = 'explore';
-                renderApp();
-            }
+        
+        // PAGAR ANTES DE TIEMPO con CBU aleatorio
+        function generateRandomCBU() {
+            const parts = [Math.floor(Math.random()*9999), Math.floor(Math.random()*999999), Math.floor(Math.random()*99999999)];
+            return `CBU: ${parts[0].toString().padStart(4,'0')}-${parts[1].toString().padStart(6,'0')}-${parts[2].toString().padStart(8,'0')}`;
+        }
+        
+        window.openPaymentModal = (bookingId, amount) => {
+            const cbu = generateRandomCBU();
+            state.paymentModal = { open: true, bookingId, cbu, amount };
+            renderApp();
         };
-
+        
+        window.closePaymentModal = () => {
+            state.paymentModal = { open: false, bookingId: null, cbu: '', amount: 0 };
+            renderApp();
+        };
+        
+        window.confirmPayment = async () => {
+            const { bookingId, amount } = state.paymentModal;
+            if (!bookingId) return;
+            const success = await updateBookingInDB(bookingId, { paid: true, paymentDate: new Date().toISOString(), paidAmount: amount });
+            if (success) {
+                showToast(`💰 ${t('paymentSuccess')} - ${t('randomCbu')}: ${state.paymentModal.cbu}`, "success");
+                await refreshData();
+            } else {
+                showToast(`❌ ${t('paymentFailed')}`, "error");
+            }
+            closePaymentModal();
+        };
+        
+        // Reservar habitación (con validación de disponibilidad real)
         window.handleBookRoom = async (e) => {
             e.preventDefault();
             if (!state.user || !state.guestName.trim() || !state.bookingModal.room) return;
+            const room = state.bookingModal.room;
+            const { checkIn, checkOut } = state.searchDates;
+            if (checkIn >= checkOut) { showToast("❌ Fechas inválidas", "error"); return; }
+            const status = getRoomStatus(room.id, checkIn, checkOut);
+            if (!status.available) { showToast(`⚠️ Habitación no disponible (${status.bookedBy || 'ocupada'})`, "error"); return; }
             
             state.isSubmitting = true;
-            renderApp(); // Mostrar estado de carga
-
-            if (usingRealFirebase) {
-                try {
-                    const bookingsRef = collection(db, 'artifacts', appId, 'public', 'data', 'hotel_bookings');
-                    await addDoc(bookingsRef, {
-                        roomId: state.bookingModal.room.id,
-                        roomName: state.bookingModal.room.name,
-                        guestName: state.guestName.trim(),
-                        checkIn: state.searchDates.checkIn,
-                        checkOut: state.searchDates.checkOut,
-                        userId: state.user.uid,
-                        createdAt: serverTimestamp()
-                    });
-                } catch (err) { console.error(err); }
-            } else {
-                // Modo local
-                state.bookings.push({
-                    id: Math.random().toString(),
-                    roomId: state.bookingModal.room.id,
-                    roomName: state.bookingModal.room.name,
-                    guestName: state.guestName.trim(),
-                    checkIn: state.searchDates.checkIn,
-                    checkOut: state.searchDates.checkOut,
-                    userId: state.user.uid
-                });
-            }
-
+            renderApp();
+            
+            const newBooking = {
+                roomId: room.id,
+                roomName: currentLang === 'es' ? room.name.es : room.name.en,
+                guestName: state.guestName.trim(),
+                checkIn, checkOut,
+                userId: state.user.uid,
+                createdAt: new Date().toISOString(),
+                paid: false,
+                paymentDate: null,
+                pricePerNight: room.price,
+                totalAmount: room.price * (Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000*60*60*24)))
+            };
+            
+            await addBookingToDB(newBooking);
+            await refreshData();
             state.isSubmitting = false;
             state.guestName = '';
             state.bookingModal = { isOpen: false, room: null };
             state.activeTab = 'bookings';
+            showToast(`✨ ${t('reserve')} confirmada`, "success");
             renderApp();
         };
-
-        window.handleCancelBooking = async (bookingId) => {
-            if (usingRealFirebase) {
-                try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'hotel_bookings', bookingId)); } 
-                catch (err) { console.error(err); }
-            } else {
-                state.bookings = state.bookings.filter(b => b.id !== bookingId);
-                renderApp();
-            }
+        
+        // LOGIN SIMULADO + GOOGLE MOCK (multilenguaje y persistente)
+        window.handleGoogleLogin = async () => {
+            const mockNames = ['Carlos Méndez', 'Lucía Fuentes', 'Mateo Rivas', 'Valentina Paz'];
+            const randomName = mockNames[Math.floor(Math.random() * mockNames.length)];
+            const newUser = {
+                uid: 'google_' + Date.now(),
+                displayName: randomName,
+                email: `${randomName.toLowerCase().replace(' ', '.')}@gmail.com`,
+                isGuest: false,
+                avatar: 'G'
+            };
+            await saveUser(newUser);
+            state.user = newUser;
+            await refreshData();
+            showToast(`👋 Bienvenido ${newUser.displayName}`, "success");
+            state.activeTab = 'home';
+            renderApp();
         };
-
-        // --- 6. RENDERIZADO DE INTERFAZ (UI) ---
-        const renderLogin = () => `
-            <div class="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center fade-in">
-                <div class="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mb-8 shadow-xl shadow-blue-200">
-                    <i data-lucide="bed-double" class="w-10 h-10 text-white"></i>
-                </div>
-                <h1 class="text-3xl font-semibold tracking-tight text-gray-900 mb-2">Nova Hotels</h1>
-                <p class="text-gray-500 mb-12 max-w-xs">Iniciá sesión para gestionar tus reservas y acceder a habitaciones exclusivas.</p>
-                
-                <button onclick="window.handleGoogleLogin()" class="w-full max-w-sm flex items-center justify-center gap-3 bg-white border border-gray-200 text-gray-800 font-medium py-3.5 px-4 rounded-xl shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-all">
-                    <svg class="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                        <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                        <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                        <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
-                    Continuar con Google
-                </button>
-            </div>
-        `;
-
-        const renderMainApp = () => {
-            let tabContent = '';
-            
-            // PESTAÑA EXPLORAR
-            if (state.activeTab === 'explore') {
-                tabContent = `
-                    <div class="space-y-8 fade-in">
-                        <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
-                            <div class="flex flex-col sm:flex-row gap-4">
-                                <div class="flex-1">
-                                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1 mb-1 block">Entrada</label>
-                                    <input type="date" value="${state.searchDates.checkIn}" onchange="window.updateDate('checkIn', this.value)" min="${today}" class="w-full bg-gray-50 text-gray-900 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium" />
-                                </div>
-                                <div class="flex-1">
-                                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1 mb-1 block">Salida</label>
-                                    <input type="date" value="${state.searchDates.checkOut}" onchange="window.updateDate('checkOut', this.value)" min="${state.searchDates.checkIn || today}" class="w-full bg-gray-50 text-gray-900 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-5">
-                            <h2 class="text-xl font-semibold text-gray-900">Habitaciones Disponibles</h2>
-                            ${HOTEL_ROOMS.map(room => {
-                                const status = getRoomStatus(room.id);
-                                const isInvalid = state.searchDates.checkIn >= state.searchDates.checkOut;
-                                return `
-                                    <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 flex flex-col sm:flex-row">
-                                        <div class="h-48 sm:h-auto sm:w-1/3 relative">
-                                            <img src="${room.image}" alt="${room.name}" class="w-full h-full object-cover" />
-                                            ${(!status.available && !isInvalid) ? `<div class="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center"><span class="bg-gray-900 text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide">Ocupada</span></div>` : ''}
-                                        </div>
-                                        <div class="p-5 flex-1 flex flex-col justify-between">
-                                            <div>
-                                                <div class="flex justify-between items-start mb-1">
-                                                    <h3 class="text-lg font-bold text-gray-900">${room.name}</h3>
-                                                    <span class="text-blue-600 font-semibold">$${room.price}<span class="text-sm font-normal text-gray-500">/n</span></span>
-                                                </div>
-                                                <p class="text-sm text-gray-500 mb-4">${room.capacity} • ${room.type}</p>
-                                            </div>
-                                            ${(status.available && !isInvalid) ? 
-                                                `<button onclick="window.openModal('${room.id}')" class="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-sm shadow-blue-200 active:scale-[0.98] transition-all">Reservar ahora</button>` 
-                                                : isInvalid ? 
-                                                `<div class="w-full py-3 bg-gray-100 text-gray-400 rounded-xl font-medium text-center text-sm">Revisá las fechas</div>` 
-                                                : 
-                                                `<div class="w-full py-3 bg-gray-50 text-gray-500 rounded-xl font-medium text-center text-sm flex items-center justify-center gap-2"><i data-lucide="info" class="w-4 h-4"></i> Reservada por ${status.bookedBy?.split(' ')[0]}</div>`
-                                            }
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // PESTAÑA RESERVAS
-            if (state.activeTab === 'bookings') {
-                const myBookings = state.bookings.filter(b => b.userId === state.user?.uid);
-                if (myBookings.length === 0) {
-                    tabContent = `
-                        <div class="text-center py-20 fade-in">
-                            <i data-lucide="calendar-days" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
-                            <h3 class="text-xl font-semibold text-gray-900 mb-2">No tenés reservas</h3>
-                            <p class="text-gray-500">Cuando reserves una habitación, va a aparecer acá.</p>
-                            <button onclick="window.setTab('explore')" class="mt-6 text-blue-600 font-semibold">Ir a Explorar</button>
-                        </div>
-                    `;
-                } else {
-                    tabContent = `<div class="space-y-4 fade-in">` + myBookings.map(booking => `
-                        <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 relative overflow-hidden">
-                            <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
-                            <div class="flex justify-between items-start mb-3">
-                                <div>
-                                    <p class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Confirmada</p>
-                                    <h3 class="text-lg font-bold text-gray-900">${booking.roomName}</h3>
-                                </div>
-                                <button onclick="window.handleCancelBooking('${booking.id}')" class="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Cancelar Reserva">
-                                    <i data-lucide="trash-2" class="w-5 h-5"></i>
-                                </button>
-                            </div>
-                            <div class="bg-gray-50 rounded-xl p-3 flex justify-between items-center mb-4">
-                                <div class="text-center flex-1">
-                                    <p class="text-xs text-gray-500 mb-0.5">Entrada</p>
-                                    <p class="font-semibold text-gray-900">${booking.checkIn.split('-').reverse().join('/')}</p>
-                                </div>
-                                <i data-lucide="chevron-right" class="w-5 h-5 text-gray-300 mx-2"></i>
-                                <div class="text-center flex-1">
-                                    <p class="text-xs text-gray-500 mb-0.5">Salida</p>
-                                    <p class="font-semibold text-gray-900">${booking.checkOut.split('-').reverse().join('/')}</p>
-                                </div>
-                            </div>
-                            <p class="text-sm text-gray-600 flex items-center gap-2">
-                                <i data-lucide="user" class="w-4 h-4"></i> A nombre de: <strong>${booking.guestName}</strong>
-                            </p>
-                        </div>
-                    `).join('') + `</div>`;
-                }
-            }
-
-            // PESTAÑA PERFIL
-            if (state.activeTab === 'profile') {
-                const myBookingsCount = state.bookings.filter(b => b.userId === state.user?.uid).length;
-                tabContent = `
-                    <div class="space-y-6 fade-in">
-                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 text-center">
-                            <div class="w-24 h-24 bg-gradient-to-tr from-blue-500 to-indigo-500 rounded-full mx-auto flex items-center justify-center shadow-lg mb-4 text-white text-3xl font-bold">
-                                ${(state.user?.displayName || 'U')[0].toUpperCase()}
-                            </div>
-                            <h2 class="text-xl font-bold text-gray-900">${state.user?.displayName || 'Usuario'}</h2>
-                            <p class="text-gray-500">${state.user?.email || 'Cuenta vinculada'}</p>
-                        </div>
-                        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div class="p-4 border-b border-gray-50 flex items-center justify-between text-gray-700">
-                                <div class="flex items-center gap-3">
-                                    <div class="p-2 bg-blue-50 rounded-lg text-blue-600"><i data-lucide="check-circle-2" class="w-5 h-5"></i></div>
-                                    <span class="font-medium">Reservas activas</span>
-                                </div>
-                                <span class="font-bold text-gray-900">${myBookingsCount}</span>
-                            </div>
-                            <button onclick="window.handleLogout()" class="w-full p-4 flex items-center justify-between text-red-600 active:bg-red-50 transition-colors text-left">
-                                <div class="flex items-center gap-3">
-                                    <div class="p-2 bg-red-50 rounded-lg"><i data-lucide="log-out" class="w-5 h-5"></i></div>
-                                    <span class="font-medium">Cerrar Sesión</span>
-                                </div>
-                                <i data-lucide="chevron-right" class="w-5 h-5 opacity-50"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // MODAL RESERVA
-            let modalHtml = '';
-            if (state.bookingModal.isOpen) {
-                modalHtml = `
-                    <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-                        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onclick="window.closeModal()"></div>
-                        <div class="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl slide-up">
-                            <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 sm:hidden"></div>
-                            <h3 class="text-2xl font-bold text-gray-900 mb-1">Completar Reserva</h3>
-                            <p class="text-gray-500 mb-6">${state.bookingModal.room?.name}</p>
-                            
-                            <form onsubmit="window.handleBookRoom(event)" class="space-y-5">
-                                <div class="bg-gray-50 p-4 rounded-2xl flex justify-between items-center">
-                                    <div><p class="text-xs text-gray-500">Del</p><p class="font-semibold">${state.searchDates.checkIn.split('-').reverse().join('/')}</p></div>
-                                    <div class="w-px h-8 bg-gray-200"></div>
-                                    <div class="text-right"><p class="text-xs text-gray-500">Al</p><p class="font-semibold">${state.searchDates.checkOut.split('-').reverse().join('/')}</p></div>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">Titular de la reserva</label>
-                                    <input type="text" required value="${state.guestName}" oninput="window.updateName(this.value)" placeholder="Ej. Juan Pérez" class="w-full bg-white border border-gray-300 rounded-xl px-4 py-3.5 text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" />
-                                    <p class="text-xs text-gray-500 mt-2 ml-1">La habitación estará a este nombre de manera exclusiva.</p>
-                                </div>
-                                <div class="pt-2">
-                                    <button type="submit" ${(!state.guestName.trim() || state.isSubmitting) ? 'disabled' : ''} class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-blue-200 active:scale-[0.98] transition-all disabled:opacity-50">
-                                        ${state.isSubmitting ? 'Confirmando...' : `Confirmar por $${state.bookingModal.room?.price}`}
-                                    </button>
-                                    <button type="button" onclick="window.closeModal()" class="w-full py-3 mt-2 text-gray-500 font-semibold">Cancelar</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // TÍTULO HEADER
-            const headerTitle = state.activeTab === 'explore' ? 'Explorar' : state.activeTab === 'bookings' ? 'Mis Reservas' : 'Mi Perfil';
-            const myBookingsCount = state.bookings.filter(b => b.userId === state.user?.uid).length;
-
+        
+        window.handleLogout = async () => {
+            const guestUser = { uid: 'guest_' + Math.random().toString(36).substr(2, 8), displayName: 'Viajero', email: 'guest@novahotel.com', isGuest: true, avatar: '👤' };
+            await saveUser(guestUser);
+            state.user = guestUser;
+            await refreshData();
+            showToast("🔓 Sesión cerrada", "info");
+            state.activeTab = 'home';
+            renderApp();
+        };
+        
+        window.setLanguage = (lang) => {
+            currentLang = lang;
+            localStorage.setItem('app_lang', lang);
+            renderApp();
+        };
+        
+        // ---------- 7. RENDER COMPLETO (HOME + EXPLORE + BOOKINGS + PROFILE) ----------
+        function renderHome() {
+            const roomCount = HOTEL_ROOMS.length;
+            const lang = currentLang;
             return `
-                <div class="pt-12 pb-4 px-6 bg-white sticky top-0 z-20 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-                    <h1 class="text-3xl font-bold text-gray-900 tracking-tight">${headerTitle}</h1>
+                <div class="space-y-6 fade-in">
+                    <div class="relative rounded-3xl overflow-hidden h-56 shadow-lg">
+                        <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=800" class="w-full h-full object-cover" alt="hotel">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-6">
+                            <h2 class="text-2xl font-bold text-white">${t('welcome')}</h2>
+                            <p class="text-white/80">${t('slogan')}</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">✨ ${t('featured')}</h3>
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div><i data-lucide="wifi" class="w-7 h-7 text-blue-500 mx-auto mb-2"></i><p class="text-xs font-medium">${t('wifi')}</p></div>
+                            <div><i data-lucide="sparkles" class="w-7 h-7 text-blue-500 mx-auto mb-2"></i><p class="text-xs font-medium">${t('spa')}</p></div>
+                            <div><i data-lucide="utensils" class="w-7 h-7 text-blue-500 mx-auto mb-2"></i><p class="text-xs font-medium">${t('restaurant')}</p></div>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-3xl p-6 border border-blue-100">
+                        <p class="text-gray-700 text-sm leading-relaxed">🌟 Disfrutá de una experiencia única con vista al mar, piscina climatizada y servicio de conserjería 24/7. Pagá anticipadamente con CBU aleatorio y obtené beneficios exclusivos.</p>
+                    </div>
                 </div>
-                <main class="px-6 pt-6">${tabContent}</main>
-                
-                <nav class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-gray-200 pb-safe pt-2 px-6 flex justify-around z-30">
-                    <button onclick="window.setTab('explore')" class="flex flex-col items-center p-2 min-w-[64px] transition-colors ${state.activeTab === 'explore' ? 'text-blue-600' : 'text-gray-400'}">
-                        <i data-lucide="search" class="w-6 h-6 mb-1"></i><span class="text-[10px] font-medium">Explorar</span>
-                    </button>
-                    <button onclick="window.setTab('bookings')" class="flex flex-col items-center p-2 min-w-[64px] transition-colors relative ${state.activeTab === 'bookings' ? 'text-blue-600' : 'text-gray-400'}">
-                        <i data-lucide="calendar-days" class="w-6 h-6 mb-1"></i><span class="text-[10px] font-medium">Reservas</span>
-                        ${myBookingsCount > 0 ? `<span class="absolute top-1 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>` : ''}
-                    </button>
-                    <button onclick="window.setTab('profile')" class="flex flex-col items-center p-2 min-w-[64px] transition-colors ${state.activeTab === 'profile' ? 'text-blue-600' : 'text-gray-400'}">
-                        <i data-lucide="user" class="w-6 h-6 mb-1"></i><span class="text-[10px] font-medium">Perfil</span>
-                    </button>
-                </nav>
-                ${modalHtml}
-                <div class="h-16"></div> <!-- Spacing -->
             `;
-        };
-
-        // --- 7. BUCLE DE RENDERIZADO ---
-        const renderApp = () => {
-            const root = document.getElementById('app-root');
-            if (state.loading) {
-                root.innerHTML = `<div class="min-h-screen flex items-center justify-center bg-gray-50"><div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>`;
-            } else if (!isLoggedIn()) {
-                root.innerHTML = renderLogin();
-            } else {
-                root.innerHTML = renderMainApp();
-            }
-            // Inicializar los iconos después de cada dibujado de pantalla
-            lucide.createIcons();
-        };
-
-        // --- 8. INICIALIZACIÓN ---
-        const init = async () => {
-            renderApp(); // Mostrar spinner
-            if (usingRealFirebase) {
-                try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                    onAuthStateChanged(auth, (currentUser) => {
-                        state.user = currentUser;
-                        if (currentUser) fetchBookings();
-                        else { state.loading = false; renderApp(); }
-                    });
-                } catch (e) {
-                    console.error(e);
-                    state.loading = false;
-                    renderApp();
-                }
-            } else {
-                // Simular carga para entorno local sin base de datos
-                setTimeout(() => {
-                    state.loading = false;
-                    renderApp();
-                }, 800);
-            }
-        };
-
-        init();
-    </script>
-</body>
-</html>
-
+        }
+        
+        function renderExplore() {
+            const { checkIn, checkOut } = state.searchDates;
+            const isInvalid = checkIn >= checkOut;
+            return `
+                <div class="space-y-6 fade-in">
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <div class="flex-1"><label class="text-xs font-bold text-gray-500">${t('checkIn')}</label><input type="date" value="${checkIn}" onchange="window.updateDate('checkIn', this.value)" min="${today}" class="w-full bg-gray-50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500"></div>
+                            <div class="flex-1"><label class="text-xs font-bold text-gray-500">${t('checkOut')}</label><input type="date" value="${checkOut}" onchange="window.updateDate('checkOut', this.value)" min="${checkIn || today}" class="w-full bg-gray-50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500"></div>
+                        </div>
+                
