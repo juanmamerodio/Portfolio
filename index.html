@@ -91,8 +91,8 @@
         .fade-up { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         
         @keyframes slideUpModal {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
         .slide-up-modal { animation: slideUpModal 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
 
@@ -129,11 +129,10 @@
         <span id="toast-message">Mensaje</span>
     </div>
 
-    <!-- Contenedor Principal (App) -->
-    <div id="app-root" class="min-h-screen max-w-lg mx-auto bg-[#F7F7F7] shadow-2xl overflow-hidden relative"></div>
+    <!-- Contenedor Principal (App) - FIX QA: Modificado para ser Responsive -->
+    <div id="app-root" class="min-h-screen w-full md:max-w-3xl lg:max-w-5xl mx-auto bg-[#F7F7F7] shadow-2xl md:shadow-none overflow-hidden relative transition-all duration-300"></div>
 
     <script type="module">
-        // FIX QA: Eliminamos el import 'unpkg' como módulo porque falla en GitHub Pages por CORS/Resolución
         // Usaremos directamente `window.lucide` que se carga en el <head>
         
         // ==================== 1. MULTILENGUAJE ====================
@@ -215,17 +214,13 @@
             
             async init() {
                 try {
-                    // FIX QA Anti-Cuelgues: Si la BD tarda más de 1.5s en responder, fuerza el error
-                    // Esto evita la pantalla blanca eterna en navegadores bloqueados (Incógnito, extensiones, GH Pages errors)
                     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout DB local")), 1500));
                     await Promise.race([this.loadData(), timeout]);
                 } catch (error) {
                     console.warn('DB Error o Bloqueo del Navegador. Entrando en Modo RAM:', error);
-                    // Fallback automático para que la app no se cuelgue nunca
                     this.user = null;
                     this.allBookings = [];
                 } finally {
-                    // Aseguramos que termine la carga sí o sí
                     this.loading = false;
                     this.render();
                 }
@@ -246,7 +241,6 @@
                 }
             }
             
-            // Lógica de Disponibilidad (Backend Simulado)
             isRoomAvailable(roomId, checkIn, checkOut) {
                 if (checkIn >= checkOut) return false;
                 return !this.allBookings.some(b => b.roomId === roomId && b.checkIn < checkOut && b.checkOut > checkIn);
@@ -260,7 +254,6 @@
             
             // ==================== INTERACCIONES (Multimodal & UI) ====================
             refreshIcons() {
-                // FIX QA: Llamar a lucide nativo y global del <head>
                 if (window.lucide && window.lucide.createIcons) {
                     window.lucide.createIcons();
                 }
@@ -271,10 +264,13 @@
                 const icon = document.getElementById('toast-icon');
                 const msg = document.getElementById('toast-message');
                 
-                if(!toast) return;
+                if(!toast || !icon) return;
                 
+                // FIX QA Crítico: Las etiquetas SVG de Lucide fallan si intentás modificarles la propiedad .className
+                // Se debe usar setAttribute('class', ...) obligatoriamente.
                 icon.setAttribute('data-lucide', type === 'success' ? 'check-circle-2' : type === 'error' ? 'alert-circle' : 'info');
-                icon.className = `w-5 h-5 ${type === 'success' ? 'text-green-400' : type === 'error' ? 'text-red-400' : 'text-blue-400'}`;
+                icon.setAttribute('class', `w-5 h-5 ${type === 'success' ? 'text-green-400' : type === 'error' ? 'text-red-400' : 'text-blue-400'}`);
+                
                 msg.innerText = message;
                 this.refreshIcons();
                 
@@ -517,8 +513,8 @@
             renderLogin() {
                 return `
                     <div class="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1542314831-c6a4d14d8c85?auto=format&fit=crop&q=80&w=800')">
-                        <div class="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
-                        <div class="relative z-10 w-full max-w-sm glass-card rounded-[32px] p-8 fade-up">
+                        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+                        <div class="relative z-10 w-full max-w-sm glass-card rounded-[32px] p-8 fade-up mx-auto">
                             <div class="w-20 h-20 bg-black text-white rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-2xl">
                                 <i data-lucide="building-2" class="w-10 h-10"></i>
                             </div>
@@ -540,21 +536,21 @@
             
             renderHome() {
                 return `
-                    <div class="space-y-8 px-6 pt-safe mt-6 fade-up pb-32">
+                    <div class="space-y-8 px-6 md:px-12 pt-safe mt-6 fade-up pb-32">
                         <div class="flex justify-between items-end">
                             <div>
-                                <h1 class="text-4xl font-black tracking-tight text-gray-900">Nova.</h1>
-                                <p class="text-sm text-gray-500 font-medium mt-1">Donde empieza tu viaje</p>
+                                <h1 class="text-4xl md:text-5xl font-black tracking-tight text-gray-900">Nova.</h1>
+                                <p class="text-sm md:text-base text-gray-500 font-medium mt-1">Donde empieza tu viaje</p>
                             </div>
                             <div class="w-14 h-14 bg-gradient-to-br from-gray-900 to-gray-700 text-white rounded-[20px] flex items-center justify-center text-2xl shadow-lg border border-gray-600">${this.user?.avatar}</div>
                         </div>
                         
-                        <div class="relative rounded-[32px] overflow-hidden h-96 shadow-2xl group">
-                            <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=800" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-8">
-                                <span class="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full w-max mb-3 uppercase tracking-wider">Destacado</span>
-                                <h2 class="text-3xl font-bold text-white leading-tight">Tu escapada<br>perfecta</h2>
-                                <button onclick="window.app.setTab('explore')" class="btn-haptic mt-6 bg-white text-black px-6 py-3.5 rounded-full font-bold text-sm w-max flex items-center gap-2 shadow-lg">
+                        <div class="relative rounded-[32px] overflow-hidden h-96 md:h-[450px] shadow-2xl group">
+                            <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=1200" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-8 md:p-12">
+                                <span class="bg-white/20 backdrop-blur-md text-white text-xs md:text-sm font-bold px-3 py-1.5 rounded-full w-max mb-3 uppercase tracking-wider">Destacado</span>
+                                <h2 class="text-3xl md:text-5xl font-bold text-white leading-tight">Tu escapada<br>perfecta</h2>
+                                <button onclick="window.app.setTab('explore')" class="btn-haptic mt-6 bg-white text-black px-6 py-3.5 rounded-full font-bold text-sm w-max flex items-center gap-2 shadow-lg hover:scale-105 transition-transform">
                                     ${t('bookNow')} <i data-lucide="arrow-right" class="w-4 h-4"></i>
                                 </button>
                             </div>
@@ -562,20 +558,20 @@
                         
                         <div>
                             <div class="flex justify-between items-center mb-5">
-                                <h3 class="text-xl font-bold text-gray-900">${t('featured')}</h3>
+                                <h3 class="text-xl md:text-2xl font-bold text-gray-900">${t('featured')}</h3>
                             </div>
-                            <div class="grid grid-cols-3 gap-4">
-                                <div class="glass-card rounded-[24px] p-4 text-center btn-haptic flex flex-col items-center justify-center aspect-square" onclick="window.app.showToast('Conectividad en todo el hotel')">
-                                    <i data-lucide="wifi" class="w-7 h-7 text-blue-500 mb-2"></i>
-                                    <p class="text-[11px] font-bold text-gray-600 uppercase tracking-wide">WiFi 6E</p>
+                            <div class="grid grid-cols-3 gap-4 md:gap-8">
+                                <div class="glass-card rounded-[24px] p-4 text-center btn-haptic flex flex-col items-center justify-center aspect-square md:aspect-auto md:h-40 cursor-pointer" onclick="window.app.showToast('Conectividad en todo el hotel')">
+                                    <i data-lucide="wifi" class="w-7 h-7 text-blue-500 mb-2 md:w-10 md:h-10 md:mb-4"></i>
+                                    <p class="text-[11px] md:text-sm font-bold text-gray-600 uppercase tracking-wide">WiFi 6E</p>
                                 </div>
-                                <div class="glass-card rounded-[24px] p-4 text-center btn-haptic flex flex-col items-center justify-center aspect-square" onclick="window.app.showToast('Reservas en recepción')">
-                                    <i data-lucide="sparkles" class="w-7 h-7 text-purple-500 mb-2"></i>
-                                    <p class="text-[11px] font-bold text-gray-600 uppercase tracking-wide">Spa</p>
+                                <div class="glass-card rounded-[24px] p-4 text-center btn-haptic flex flex-col items-center justify-center aspect-square md:aspect-auto md:h-40 cursor-pointer" onclick="window.app.showToast('Reservas en recepción')">
+                                    <i data-lucide="sparkles" class="w-7 h-7 text-purple-500 mb-2 md:w-10 md:h-10 md:mb-4"></i>
+                                    <p class="text-[11px] md:text-sm font-bold text-gray-600 uppercase tracking-wide">Spa</p>
                                 </div>
-                                <div class="glass-card rounded-[24px] p-4 text-center btn-haptic flex flex-col items-center justify-center aspect-square" onclick="window.app.showToast('Menú Internacional')">
-                                    <i data-lucide="utensils" class="w-7 h-7 text-orange-500 mb-2"></i>
-                                    <p class="text-[11px] font-bold text-gray-600 uppercase tracking-wide">Cocina</p>
+                                <div class="glass-card rounded-[24px] p-4 text-center btn-haptic flex flex-col items-center justify-center aspect-square md:aspect-auto md:h-40 cursor-pointer" onclick="window.app.showToast('Menú Internacional')">
+                                    <i data-lucide="utensils" class="w-7 h-7 text-orange-500 mb-2 md:w-10 md:h-10 md:mb-4"></i>
+                                    <p class="text-[11px] md:text-sm font-bold text-gray-600 uppercase tracking-wide">Cocina</p>
                                 </div>
                             </div>
                         </div>
@@ -586,50 +582,50 @@
             renderExplore() {
                 const isInvalid = this.searchDates.checkIn >= this.searchDates.checkOut;
                 return `
-                    <div class="space-y-6 px-6 pt-safe mt-6 fade-up pb-32">
-                        <h1 class="text-4xl font-black tracking-tight text-gray-900">${t('exploreRooms')}</h1>
+                    <div class="px-6 md:px-12 pt-safe mt-6 fade-up pb-32">
+                        <h1 class="text-4xl md:text-5xl font-black tracking-tight text-gray-900 mb-6">${t('exploreRooms')}</h1>
                         
                         <!-- Buscador estilo Airbnb -->
-                        <div class="bg-white rounded-[28px] p-2 flex items-center shadow-lg border border-gray-100">
+                        <div class="bg-white rounded-[28px] p-2 flex items-center shadow-lg border border-gray-100 mb-8 md:max-w-xl">
                             <div class="flex-1 flex text-left relative pl-4 pr-2 py-2">
                                 <div class="w-full">
-                                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">${t('checkIn')}</label>
-                                    <input type="date" value="${this.searchDates.checkIn}" onchange="window.app.updateDate('checkIn', this.value)" class="w-full text-sm font-semibold text-gray-900 outline-none bg-transparent" min="${today}">
+                                    <label class="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider block">${t('checkIn')}</label>
+                                    <input type="date" value="${this.searchDates.checkIn}" onchange="window.app.updateDate('checkIn', this.value)" class="w-full text-sm md:text-base font-semibold text-gray-900 outline-none bg-transparent cursor-pointer" min="${today}">
                                 </div>
                                 <div class="w-px bg-gray-200 mx-2"></div>
                                 <div class="w-full">
-                                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">${t('checkOut')}</label>
-                                    <input type="date" value="${this.searchDates.checkOut}" onchange="window.app.updateDate('checkOut', this.value)" class="w-full text-sm font-semibold text-gray-900 outline-none bg-transparent" min="${this.searchDates.checkIn}">
+                                    <label class="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider block">${t('checkOut')}</label>
+                                    <input type="date" value="${this.searchDates.checkOut}" onchange="window.app.updateDate('checkOut', this.value)" class="w-full text-sm md:text-base font-semibold text-gray-900 outline-none bg-transparent cursor-pointer" min="${this.searchDates.checkIn}">
                                 </div>
                             </div>
-                            <button onclick="window.app.startVoiceSearch()" class="btn-haptic w-12 h-12 rounded-[20px] ${this.voiceActive ? 'bg-red-500 animate-pulse' : 'bg-[#FF385C]'} text-white flex items-center justify-center shadow-md flex-shrink-0">
-                                <i data-lucide="${this.voiceActive ? 'radio' : 'mic'}" class="w-5 h-5"></i>
+                            <button onclick="window.app.startVoiceSearch()" class="btn-haptic w-12 h-12 md:w-14 md:h-14 rounded-[20px] ${this.voiceActive ? 'bg-red-500 animate-pulse' : 'bg-[#FF385C]'} text-white flex items-center justify-center shadow-md flex-shrink-0 hover:bg-[#E31C5F] transition-colors">
+                                <i data-lucide="${this.voiceActive ? 'radio' : 'mic'}" class="w-5 h-5 md:w-6 md:h-6"></i>
                             </button>
                         </div>
                         
-                        <div class="space-y-8">
+                        <div class="space-y-8 md:grid md:grid-cols-2 md:gap-8 md:space-y-0">
                             ${HOTEL_ROOMS.map(room => {
                                 const status = this.getRoomStatus(room.id);
                                 const name = currentLang === 'es' ? room.name.es : room.name.en;
                                 return `
                                     <div class="group btn-haptic cursor-pointer" onclick="${status.available && !isInvalid ? `window.app.openModal('${room.id}')` : ''}">
-                                        <div class="relative rounded-[24px] overflow-hidden aspect-[4/3] mb-3">
-                                            <img src="${room.image}" class="w-full h-full object-cover">
+                                        <div class="relative rounded-[24px] overflow-hidden aspect-[4/3] mb-4">
+                                            <img src="${room.image}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                                             <div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full font-bold text-sm shadow-sm flex items-center gap-1">
                                                 <i data-lucide="star" class="w-4 h-4 text-black fill-current"></i> ${room.rating}
                                             </div>
                                             ${!status.available && !isInvalid ? `
                                                 <div class="absolute inset-0 bg-white/50 backdrop-blur-[2px] flex items-center justify-center">
-                                                    <span class="bg-black text-white px-4 py-2 rounded-full font-bold text-sm shadow-xl">${t('occupied')}</span>
+                                                    <span class="bg-black text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-xl">${t('occupied')}</span>
                                                 </div>
                                             ` : ''}
                                         </div>
                                         <div>
                                             <div class="flex justify-between items-start">
-                                                <h3 class="text-[17px] font-bold text-gray-900 leading-tight">${name}</h3>
+                                                <h3 class="text-[17px] md:text-lg font-bold text-gray-900 leading-tight">${name}</h3>
                                             </div>
-                                            <p class="text-[15px] text-gray-500 mt-1">${room.type[currentLang]} · ${room.capacity} huéspedes</p>
-                                            <p class="text-[15px] font-medium text-gray-900 mt-2">
+                                            <p class="text-[15px] md:text-base text-gray-500 mt-1">${room.type[currentLang]} · ${room.capacity} huéspedes</p>
+                                            <p class="text-[15px] md:text-base font-medium text-gray-900 mt-2">
                                                 <span class="font-bold">ARS $${room.price.toLocaleString('es-AR')}</span> <span class="text-gray-500 font-normal">/ noche</span>
                                             </p>
                                         </div>
@@ -643,60 +639,62 @@
             
             renderBookings() {
                 return `
-                    <div class="space-y-6 px-6 pt-safe mt-6 fade-up pb-32 min-h-screen">
-                        <h1 class="text-4xl font-black tracking-tight text-gray-900">${t('bookings')}</h1>
+                    <div class="px-6 md:px-12 pt-safe mt-6 fade-up pb-32 min-h-screen">
+                        <h1 class="text-4xl md:text-5xl font-black tracking-tight text-gray-900 mb-8">${t('bookings')}</h1>
                         
                         ${this.userBookings.length === 0 ? `
-                            <div class="flex flex-col items-center justify-center h-72 text-center">
-                                <div class="w-24 h-24 bg-white border border-gray-100 shadow-sm rounded-full flex items-center justify-center mb-6">
+                            <div class="flex flex-col items-center justify-center h-72 text-center bg-white rounded-[32px] border border-gray-100 shadow-sm p-8">
+                                <div class="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6">
                                     <i data-lucide="plane" class="w-10 h-10 text-gray-300"></i>
                                 </div>
-                                <h3 class="text-xl font-bold text-gray-900">${t('noBookings')}</h3>
+                                <h3 class="text-xl md:text-2xl font-bold text-gray-900">${t('noBookings')}</h3>
                                 <p class="text-gray-500 mt-2 mb-6">Tus próximas aventuras aparecerán aquí.</p>
-                                <button onclick="window.app.setTab('explore')" class="btn-haptic px-8 py-3.5 bg-black text-white rounded-[20px] font-bold shadow-lg">${t('bookNow')}</button>
+                                <button onclick="window.app.setTab('explore')" class="btn-haptic px-8 py-3.5 bg-black text-white rounded-[20px] font-bold shadow-lg hover:bg-gray-800 transition-colors">${t('bookNow')}</button>
                             </div>
                         ` : `
-                            <div class="space-y-6">
+                            <div class="space-y-6 md:grid md:grid-cols-2 md:gap-8 md:space-y-0">
                                 ${this.userBookings.map(b => {
                                     const name = currentLang === 'es' ? b.roomName.es || b.roomName : b.roomName.en || b.roomName;
                                     return `
-                                        <div class="bg-white rounded-[32px] p-6 shadow-xl shadow-gray-200/50 border border-gray-100">
-                                            <div class="flex justify-between items-center mb-5">
-                                                <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${b.paid ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
-                                                    ${b.paid ? t('paid') : t('unpaid')}
-                                                </span>
-                                                <button onclick="window.app.handleCancelBooking('${b.id}')" class="text-gray-400 hover:text-red-500 transition-colors">
-                                                    <i data-lucide="x-circle" class="w-6 h-6"></i>
-                                                </button>
-                                            </div>
-                                            
-                                            <h3 class="text-xl font-bold text-gray-900 mb-1">${name}</h3>
-                                            <p class="text-sm text-gray-500 font-mono mb-6">Ref: ${b.id}</p>
-                                            
-                                            <div class="flex items-center gap-4 bg-[#F7F7F7] p-4 rounded-[24px] mb-6">
-                                                <div class="flex-1">
-                                                    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">${t('checkIn')}</p>
-                                                    <p class="font-bold text-gray-900 mt-1">${b.checkIn.split('-').reverse().join('/')}</p>
+                                        <div class="bg-white rounded-[32px] p-6 md:p-8 shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col justify-between">
+                                            <div>
+                                                <div class="flex justify-between items-center mb-5">
+                                                    <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${b.paid ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
+                                                        ${b.paid ? t('paid') : t('unpaid')}
+                                                    </span>
+                                                    <button onclick="window.app.handleCancelBooking('${b.id}')" class="text-gray-400 hover:text-red-500 transition-colors" title="Cancelar Reserva">
+                                                        <i data-lucide="x-circle" class="w-6 h-6"></i>
+                                                    </button>
                                                 </div>
-                                                <div class="w-px h-8 bg-gray-200"></div>
-                                                <div class="flex-1">
-                                                    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">${t('checkOut')}</p>
-                                                    <p class="font-bold text-gray-900 mt-1">${b.checkOut.split('-').reverse().join('/')}</p>
+                                                
+                                                <h3 class="text-xl font-bold text-gray-900 mb-1">${name}</h3>
+                                                <p class="text-sm text-gray-500 font-mono mb-6">Ref: ${b.id}</p>
+                                                
+                                                <div class="flex items-center gap-4 bg-[#F7F7F7] p-4 rounded-[24px] mb-6">
+                                                    <div class="flex-1">
+                                                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">${t('checkIn')}</p>
+                                                        <p class="font-bold text-gray-900 mt-1">${b.checkIn.split('-').reverse().join('/')}</p>
+                                                    </div>
+                                                    <div class="w-px h-8 bg-gray-200"></div>
+                                                    <div class="flex-1">
+                                                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">${t('checkOut')}</p>
+                                                        <p class="font-bold text-gray-900 mt-1">${b.checkOut.split('-').reverse().join('/')}</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                             
                                             ${!b.paid ? `
-                                                <div class="border-t border-gray-100 pt-5 mt-5">
+                                                <div class="border-t border-gray-100 pt-5 mt-auto">
                                                     <div class="flex justify-between items-center mb-4">
                                                         <span class="text-gray-500 font-medium">Total a pagar</span>
                                                         <span class="text-xl font-bold">ARS $${b.amount.toLocaleString('es-AR')}</span>
                                                     </div>
-                                                    <button onclick="window.app.openPayment('${b.id}', ${b.amount})" class="btn-haptic w-full py-4 bg-black text-white rounded-[20px] font-bold flex justify-center items-center gap-2">
+                                                    <button onclick="window.app.openPayment('${b.id}', ${b.amount})" class="btn-haptic w-full py-4 bg-black text-white rounded-[20px] font-bold flex justify-center items-center gap-2 hover:bg-gray-800 transition-colors">
                                                         <i data-lucide="credit-card" class="w-5 h-5"></i> ${t('payNow')}
                                                     </button>
                                                 </div>
                                             ` : `
-                                                <div class="border-t border-gray-100 pt-5 mt-5 flex justify-between items-center">
+                                                <div class="border-t border-gray-100 pt-5 mt-auto flex justify-between items-center">
                                                     <span class="text-gray-500 font-medium">Abonado</span>
                                                     <span class="text-xl font-bold text-green-600">ARS $${b.amount.toLocaleString('es-AR')}</span>
                                                 </div>
@@ -712,30 +710,30 @@
             
             renderProfile() {
                 return `
-                    <div class="space-y-6 px-6 pt-safe mt-6 fade-up pb-32">
-                        <h1 class="text-4xl font-black tracking-tight text-gray-900">${t('profile')}</h1>
+                    <div class="space-y-6 px-6 md:px-12 pt-safe mt-6 fade-up pb-32">
+                        <h1 class="text-4xl md:text-5xl font-black tracking-tight text-gray-900">${t('profile')}</h1>
                         
-                        <div class="bg-white rounded-[32px] p-8 text-center shadow-lg border border-gray-100 mt-10 relative">
-                            <div class="w-28 h-28 bg-gradient-to-br from-gray-900 to-black text-white rounded-[28px] flex items-center justify-center text-5xl font-bold mx-auto shadow-2xl absolute -top-14 left-1/2 -translate-x-1/2 border-4 border-[#F7F7F7]">
+                        <div class="bg-white rounded-[32px] p-8 md:p-12 text-center shadow-lg border border-gray-100 mt-10 md:mt-16 relative md:max-w-2xl md:mx-auto">
+                            <div class="w-28 h-28 md:w-32 md:h-32 bg-gradient-to-br from-gray-900 to-black text-white rounded-[28px] md:rounded-[32px] flex items-center justify-center text-5xl md:text-6xl font-bold mx-auto shadow-2xl absolute -top-14 md:-top-16 left-1/2 -translate-x-1/2 border-4 border-[#F7F7F7]">
                                 ${this.user?.avatar}
                             </div>
-                            <div class="pt-12">
-                                <h2 class="text-2xl font-bold text-gray-900">${this.user?.displayName}</h2>
-                                <p class="text-gray-500 font-medium mt-1">${this.user?.email}</p>
+                            <div class="pt-12 md:pt-16">
+                                <h2 class="text-2xl md:text-3xl font-bold text-gray-900">${this.user?.displayName}</h2>
+                                <p class="text-gray-500 font-medium mt-1 md:text-lg">${this.user?.email}</p>
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-[32px] overflow-hidden shadow-sm border border-gray-100 mt-6">
-                            <div class="flex justify-between items-center p-5 border-b border-gray-50">
+                        <div class="bg-white rounded-[32px] overflow-hidden shadow-sm border border-gray-100 mt-6 md:max-w-2xl md:mx-auto">
+                            <div class="flex justify-between items-center p-5 md:p-6 border-b border-gray-50">
                                 <div class="flex items-center gap-4">
-                                    <div class="bg-blue-50 w-10 h-10 rounded-full flex items-center justify-center"><i data-lucide="globe" class="w-5 h-5 text-blue-500"></i></div>
+                                    <div class="bg-blue-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center"><i data-lucide="globe" class="w-5 h-5 text-blue-500"></i></div>
                                     <span class="font-semibold text-gray-900 text-lg">${t('changeLanguage')}</span>
                                 </div>
-                                <button onclick="window.app.toggleLang()" class="btn-haptic bg-gray-100 px-5 py-2 rounded-[14px] font-bold text-sm uppercase text-gray-700">${currentLang}</button>
+                                <button onclick="window.app.toggleLang()" class="btn-haptic bg-gray-100 hover:bg-gray-200 px-5 py-2 rounded-[14px] font-bold text-sm uppercase text-gray-700 transition-colors">${currentLang}</button>
                             </div>
-                            <button onclick="window.app.handleLogout()" class="btn-haptic w-full p-5 flex justify-between items-center text-red-500 bg-red-50/30">
+                            <button onclick="window.app.handleLogout()" class="btn-haptic w-full p-5 md:p-6 flex justify-between items-center text-red-500 bg-red-50/30 hover:bg-red-50 transition-colors">
                                 <div class="flex items-center gap-4">
-                                    <div class="bg-red-100 w-10 h-10 rounded-full flex items-center justify-center"><i data-lucide="log-out" class="w-5 h-5 text-red-600"></i></div>
+                                    <div class="bg-red-100 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center"><i data-lucide="log-out" class="w-5 h-5 text-red-600"></i></div>
                                     <span class="font-semibold text-lg">${t('logout')}</span>
                                 </div>
                             </button>
@@ -746,12 +744,12 @@
             
             renderTabBar() {
                 return `
-                    <nav class="fixed bottom-0 left-0 right-0 glass-nav pb-safe pt-3 px-6 flex justify-around z-40 max-w-lg mx-auto">
+                    <nav class="fixed bottom-0 left-0 right-0 glass-nav pb-safe pt-3 px-6 flex justify-around z-40 max-w-lg mx-auto md:max-w-md md:bottom-8 md:rounded-[32px] md:border border-gray-200 md:shadow-2xl md:pb-2 md:pt-2">
                         ${['home', 'explore', 'bookings', 'profile'].map(tab => `
-                            <button onclick="window.app.setTab('${tab}')" class="flex flex-col items-center p-2 transition-colors relative ${this.activeTab === tab ? 'text-[#FF385C]' : 'text-gray-400'}">
-                                <i data-lucide="${tab === 'home' ? 'compass' : tab === 'explore' ? 'search' : tab === 'bookings' ? 'heart' : 'user'}" class="w-7 h-7 ${this.activeTab === tab ? 'fill-current' : ''}"></i>
-                                <span class="text-[10px] font-bold mt-1">${t(tab)}</span>
-                                ${tab === 'bookings' && this.userBookings.length > 0 ? `<span class="absolute top-1 right-3 w-2.5 h-2.5 bg-[#FF385C] rounded-full border-2 border-white"></span>` : ''}
+                            <button onclick="window.app.setTab('${tab}')" class="flex flex-col items-center p-2 transition-colors relative ${this.activeTab === tab ? 'text-[#FF385C]' : 'text-gray-400 hover:text-gray-600'}">
+                                <i data-lucide="${tab === 'home' ? 'compass' : tab === 'explore' ? 'search' : tab === 'bookings' ? 'heart' : 'user'}" class="w-7 h-7 md:w-6 md:h-6 ${this.activeTab === tab ? 'fill-current' : ''}"></i>
+                                <span class="text-[10px] md:text-xs font-bold mt-1">${t(tab)}</span>
+                                ${tab === 'bookings' && this.userBookings.length > 0 ? `<span class="absolute top-1 md:top-0 right-3 md:right-2 w-2.5 h-2.5 bg-[#FF385C] rounded-full border-2 border-white"></span>` : ''}
                             </button>
                         `).join('')}
                     </nav>
@@ -769,13 +767,13 @@
                     const total = subtotal + taxes;
                     
                     html += `
-                        <div class="fixed inset-0 z-50 flex items-end justify-center">
+                        <div class="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
                             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onclick="window.app.closeModal()"></div>
-                            <div class="relative w-full max-w-lg bg-white rounded-t-[40px] shadow-2xl slide-up-modal pb-safe flex flex-col max-h-[90vh]">
-                                <div class="p-4 flex justify-center flex-shrink-0">
+                            <div class="relative w-full max-w-lg md:max-w-md bg-white rounded-t-[40px] md:rounded-[40px] shadow-2xl slide-up-modal pb-safe md:pb-6 flex flex-col max-h-[90vh]">
+                                <div class="p-4 flex justify-center flex-shrink-0 md:hidden">
                                     <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
                                 </div>
-                                <div class="overflow-y-auto px-6 pb-6 no-scrollbar">
+                                <div class="overflow-y-auto px-6 pb-6 md:pt-8 no-scrollbar">
                                     <h3 class="text-2xl font-black text-gray-900 mb-2">${name}</h3>
                                     <div class="flex items-center gap-2 text-sm text-gray-600 font-medium mb-6">
                                         <i data-lucide="star" class="w-4 h-4 fill-current text-[#FF385C]"></i> ${room.rating} · ${room.type[currentLang]}
@@ -802,7 +800,7 @@
                                         <input type="text" value="${this.guestName}" oninput="window.app.handleNameInput(this.value)" class="w-full bg-white border-2 border-gray-200 rounded-[16px] p-4 font-medium text-gray-900 focus:outline-none focus:border-black transition-colors text-lg" placeholder="Ej. Lionel Messi">
                                     </div>
 
-                                    <button id="bookConfirmBtn" onclick="window.app.handleBookRoom(event)" ${!this.guestName ? 'disabled' : ''} class="btn-haptic w-full py-4 bg-[#FF385C] text-white rounded-[20px] font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:bg-gray-300 shadow-lg shadow-red-200 transition-all">
+                                    <button id="bookConfirmBtn" onclick="window.app.handleBookRoom(event)" ${!this.guestName ? 'disabled' : ''} class="btn-haptic w-full py-4 bg-[#FF385C] text-white rounded-[20px] font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:bg-gray-300 shadow-lg shadow-red-200 transition-all hover:bg-[#E31C5F]">
                                         ${t('reserve')}
                                     </button>
                                 </div>
@@ -813,9 +811,9 @@
                 
                 if (this.paymentModal.open) {
                     html += `
-                        <div class="fixed inset-0 z-50 flex items-end justify-center">
+                        <div class="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
                             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="window.app.closePayment()"></div>
-                            <div class="relative w-full max-w-lg bg-white rounded-t-[40px] p-8 shadow-2xl slide-up-modal pb-safe text-center">
+                            <div class="relative w-full max-w-lg md:max-w-md bg-white rounded-t-[40px] md:rounded-[40px] p-8 shadow-2xl slide-up-modal pb-safe md:pb-8 text-center">
                                 <div class="w-20 h-20 bg-gray-50 border border-gray-100 text-gray-900 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-sm">
                                     <i data-lucide="landmark" class="w-10 h-10"></i>
                                 </div>
@@ -830,7 +828,7 @@
                                     </div>
                                 </div>
 
-                                <button id="payConfirmBtn" onclick="window.app.processPayment()" class="btn-haptic w-full py-4 bg-black text-white rounded-[20px] font-bold text-lg shadow-lg">
+                                <button id="payConfirmBtn" onclick="window.app.processPayment()" class="btn-haptic w-full py-4 bg-black text-white rounded-[20px] font-bold text-lg shadow-lg hover:bg-gray-800 transition-colors">
                                     ${t('confirmPayment')}
                                 </button>
                             </div>
