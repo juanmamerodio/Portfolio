@@ -1,1 +1,623 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Nova Hotels | iOS 26 Experience</title>
+    <!-- Tailwind + Lucide + LocalForage (DB avanzada) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #F2F2F7; }
+        * { -webkit-tap-highlight-color: transparent; }
+        
+        /* Safe areas para el notch de los iPhone */
+        .pt-safe { padding-top: env(safe-area-inset-top, 40px); }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 30px); }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Glassmorphism nivel iOS 26 */
+        .glass-nav { 
+            background: rgba(255, 255, 255, 0.65); 
+            backdrop-filter: blur(25px); 
+            -webkit-backdrop-filter: blur(25px);
+            border-top: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
 
+        /* Dynamic Island Toast */
+        .dynamic-island {
+            position: fixed;
+            top: env(safe-area-inset-top, 15px);
+            left: 50%;
+            transform: translateX(-50%) translateY(-150%) scale(0.9);
+            background: #000;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 999px;
+            font-weight: 500;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 100;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            opacity: 0;
+        }
+        .dynamic-island.show {
+            transform: translateX(-50%) translateY(0) scale(1);
+            opacity: 1;
+        }
+
+        /* Animaciones fluidas */
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1); }
+        .slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        /* Ripple & Haptic click emulation */
+        .btn-active:active { transform: scale(0.96); transition: transform 0.1s; }
+        
+        /* Custom Input iOS */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            background: transparent;
+            bottom: 0; color: transparent; cursor: pointer; height: auto; left: 0; position: absolute; right: 0; top: 0; width: auto;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-blue-200 text-gray-900 pb-24">
+
+    <!-- Notificación estilo Dynamic Island -->
+    <div id="toast-island" class="dynamic-island">
+        <i id="toast-icon" data-lucide="info" class="w-5 h-5"></i>
+        <span id="toast-msg">Mensaje</span>
+    </div>
+
+    <div id="app-root" class="min-h-screen relative max-w-md mx-auto bg-[#F2F2F7] overflow-hidden shadow-2xl"></div>
+
+    <script type="module">
+        import { createIcons, icons } from 'https://unpkg.com/lucide@latest/dist/lucide.esm.js';
+        
+        // ---------- 1. MULTILENGUAJE ----------
+        const translations = {
+            es: {
+                home: "Inicio", explore: "Explorar", bookings: "Reservas", profile: "Perfil",
+                welcome: "Nova Hotels", slogan: "La evolución del confort",
+                featured: "Experiencias Premium", wifi: "WiFi 6E", spa: "Wellness Spa", restaurant: "Alta Cocina",
+                exploreRooms: "Nuestras habitaciones", payEarly: "Abonar estadía", cancelRes: "Cancelar reserva",
+                payNow: "Pagar vía CBU", paid: "Pagado", unpaid: "Pendiente", randomCbu: "CBU Generado",
+                confirmPayment: "Confirmar Transferencia", simulatingPayment: "Simulando pago...", totalToPay: "Total a pagar",
+                paymentSuccess: "Transferencia recibida con éxito", paymentFailed: "Error en la transacción", cbuInfo: "Transferí a este CBU",
+                checkIn: "Check-in", checkOut: "Check-out", guestName: "Titular de la reserva", reserve: "Confirmar con Apple Pay",
+                available: "Reservar", occupied: "No disponible", invalidDates: "Ajustá las fechas",
+                noBookings: "Sin reservas activas", bookNow: "Encontrá tu habitación", logout: "Cerrar Sesión",
+                loginGoogle: "Entrar con Google", orContinue: "Entrar como invitado", 
+                changeLanguage: "Idioma de la App", nights: "noches", cbuRandom: "CBU",
+                voiceSearch: "Hablá para buscar...", copyCbu: "Copiar CBU"
+            },
+            en: {
+                home: "Home", explore: "Explore", bookings: "Bookings", profile: "Profile",
+                welcome: "Nova Hotels", slogan: "The evolution of comfort",
+                featured: "Premium Experiences", wifi: "WiFi 6E", spa: "Wellness Spa", restaurant: "Fine Dining",
+                exploreRooms: "Our Rooms", payEarly: "Pay stay", cancelRes: "Cancel booking",
+                payNow: "Pay via CBU", paid: "Paid", unpaid: "Pending", randomCbu: "Generated CBU",
+                confirmPayment: "Confirm Transfer", simulatingPayment: "Simulating payment...", totalToPay: "Total to pay",
+                paymentSuccess: "Transfer received successfully", paymentFailed: "Transaction error", cbuInfo: "Transfer to this CBU",
+                checkIn: "Check-in", checkOut: "Check-out", guestName: "Reservation holder", reserve: "Confirm with Apple Pay",
+                available: "Book", occupied: "Unavailable", invalidDates: "Adjust dates",
+                noBookings: "No active bookings", bookNow: "Find your room", logout: "Sign Out",
+                loginGoogle: "Sign in with Google", orContinue: "Continue as guest",
+                changeLanguage: "App Language", nights: "nights", cbuRandom: "CBU",
+                voiceSearch: "Speak to search...", copyCbu: "Copy CBU"
+            }
+        };
+        
+        let currentLang = localStorage.getItem('app_lang') || 'es';
+        function t(key) { return translations[currentLang][key] || key; }
+        
+        // ---------- 2. BASE DE DATOS LOCAL ----------
+        const dbBookings = localforage.createInstance({ name: "NovaHotel", storeName: "bookings" });
+        const dbUser = localforage.createInstance({ name: "NovaHotel", storeName: "user" });
+
+        const HOTEL_ROOMS = [
+            { id: '101', name: { es: 'Suite Presidencial', en: 'Presidential Suite' }, type: 'Suite', capacity: '4 pax', price: 350, image: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&q=80&w=600' },
+            { id: '102', name: { es: 'Doble Premium', en: 'Premium Double' }, type: 'Doble', capacity: '2 pax', price: 150, image: 'https://images.unsplash.com/photo-1560185016-3ae1746b412e?auto=format&fit=crop&q=80&w=600' },
+            { id: '103', name: { es: 'Familiar Deluxe', en: 'Family Deluxe' }, type: 'Familiar', capacity: '6 pax', price: 220, image: 'https://images.unsplash.com/photo-1582719478250-c8940994cb4e?auto=format&fit=crop&q=80&w=600' },
+            { id: '201', name: { es: 'Loft Business', en: 'Business Loft' }, type: 'Simple', capacity: '1 pax', price: 110, image: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&q=80&w=600' },
+        ];
+
+        const today = new Date().toISOString().split('T')[0];
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+        
+        // ---------- 3. ESTADO Y HELPERS ----------
+        let state = {
+            user: null,
+            bookings: [],
+            activeTab: 'home',
+            loading: true,
+            searchDates: { checkIn: today, checkOut: tomorrow },
+            bookingModal: { isOpen: false, room: null },
+            guestName: '',
+            isSubmitting: false,
+            paymentModal: { open: false, bookingId: null, cbu: '', amount: 0 },
+            voiceActive: false
+        };
+
+        // Haptic Feedback Helper
+        const haptic = () => { if(navigator.vibrate) navigator.vibrate(15); };
+        
+        // Dynamic Island Toast
+        window.showToast = (message, type = 'success') => {
+            const island = document.getElementById('toast-island');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-msg');
+            
+            icon.setAttribute('data-lucide', type === 'success' ? 'check-circle-2' : type === 'error' ? 'x-octagon' : 'info');
+            island.style.backgroundColor = type === 'error' ? '#ef4444' : '#000';
+            msg.innerText = message;
+            
+            createIcons({ icons });
+            haptic();
+            
+            island.classList.add('show');
+            setTimeout(() => island.classList.remove('show'), 3000);
+        };
+
+        // Multimodal: Web Speech API
+        window.startVoiceSearch = () => {
+            haptic();
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                window.showToast("Dictado no soportado en este navegador", "error");
+                return;
+            }
+            const recognition = new SpeechRecognition();
+            recognition.lang = currentLang === 'es' ? 'es-AR' : 'en-US';
+            
+            recognition.onstart = () => {
+                state.voiceActive = true;
+                renderApp();
+            };
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                window.showToast(`Buscando: "${transcript}"`, "info");
+                // Acá podrías conectar una IA para parsear fechas, por ahora simulamos
+                setTimeout(() => window.showToast("Mostrando resultados sugeridos", "success"), 1500);
+            };
+            
+            recognition.onend = () => {
+                state.voiceActive = false;
+                renderApp();
+            };
+            
+            recognition.start();
+        };
+
+        // ---------- 4. LÓGICA DE NEGOCIO ----------
+        async function loadApp() {
+            let user = await dbUser.getItem('currentUser');
+            if (user) {
+                state.user = user;
+                const allBookings = await dbBookings.getItem('all_bookings') || [];
+                state.bookings = allBookings.filter(b => b.userId === user.uid);
+            }
+            state.loading = false;
+            renderApp();
+        }
+
+        const getRoomStatus = (roomId) => {
+            const { checkIn, checkOut } = state.searchDates;
+            if (checkIn >= checkOut) return { available: false, reason: 'invalid' };
+            const overlapping = state.bookings.find(b => b.roomId === roomId && b.checkIn < checkOut && b.checkOut > checkIn);
+            return overlapping ? { available: false, bookedBy: overlapping.guestName } : { available: true };
+        };
+
+        // Eventos Globales
+        window.setTab = (tab) => { haptic(); state.activeTab = tab; renderApp(); };
+        window.updateDate = (f, v) => { state.searchDates[f] = v; renderApp(); };
+        window.updateName = (v) => { state.guestName = v; renderApp(); };
+        
+        window.openModal = (roomId) => { haptic(); state.bookingModal = { isOpen: true, room: HOTEL_ROOMS.find(r => r.id === roomId) }; state.guestName = state.user?.displayName || ''; renderApp(); };
+        window.closeModal = () => { state.bookingModal = { isOpen: false, room: null }; renderApp(); };
+        
+        window.handleLogin = async (type) => {
+            haptic();
+            const uid = type === 'google' ? 'g_'+Date.now() : 'guest_'+Date.now();
+            const name = type === 'google' ? 'Usuario iOS' : 'Invitado';
+            const user = { uid, displayName: name, email: `${name.replace(' ','').toLowerCase()}@icloud.com`, isGuest: type !== 'google', avatar: type === 'google' ? '' : '👤' };
+            await dbUser.setItem('currentUser', user);
+            state.user = user;
+            window.showToast(t('welcome') + " " + name);
+            renderApp();
+        };
+
+        window.handleLogout = async () => {
+            haptic();
+            await dbUser.removeItem('currentUser');
+            state.user = null;
+            state.bookings = [];
+            window.showToast("Sesión cerrada");
+            renderApp();
+        };
+
+        window.handleBookRoom = async (e) => {
+            e.preventDefault();
+            haptic();
+            state.isSubmitting = true; renderApp();
+            
+            const r = state.bookingModal.room;
+            const nights = Math.ceil((new Date(state.searchDates.checkOut) - new Date(state.searchDates.checkIn)) / 86400000);
+            
+            const newBooking = {
+                id: 'BK-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
+                roomId: r.id,
+                roomName: r.name,
+                guestName: state.guestName,
+                checkIn: state.searchDates.checkIn,
+                checkOut: state.searchDates.checkOut,
+                userId: state.user.uid,
+                paid: false,
+                amount: r.price * nights
+            };
+            
+            const all = await dbBookings.getItem('all_bookings') || [];
+            all.push(newBooking);
+            await dbBookings.setItem('all_bookings', all);
+            state.bookings.push(newBooking);
+            
+            state.isSubmitting = false;
+            window.closeModal();
+            window.setTab('bookings');
+            window.showToast(t('reserve') + " Completada", "success");
+        };
+
+        window.handleCancelBooking = async (id) => {
+            if(confirm("¿Cancelar reserva?")) {
+                haptic();
+                const all = await dbBookings.getItem('all_bookings') || [];
+                await dbBookings.setItem('all_bookings', all.filter(b => b.id !== id));
+                state.bookings = state.bookings.filter(b => b.id !== id);
+                window.showToast("Reserva cancelada", "info");
+                renderApp();
+            }
+        };
+
+        // Pagos
+        window.openPayment = (id, amount) => { 
+            haptic();
+            const cbu = `0000${Math.floor(1000+Math.random()*9000)}3000${Math.floor(10000000+Math.random()*90000000)}`;
+            state.paymentModal = { open: true, bookingId: id, amount, cbu }; 
+            renderApp(); 
+        };
+        window.closePayment = () => { state.paymentModal.open = false; renderApp(); };
+        window.copyCbu = () => { navigator.clipboard.writeText(state.paymentModal.cbu); window.showToast("CBU Copiado", "success"); haptic(); };
+        window.processPayment = async () => {
+            haptic();
+            state.isSubmitting = true; renderApp();
+            setTimeout(async () => {
+                const all = await dbBookings.getItem('all_bookings') || [];
+                const idx = all.findIndex(b => b.id === state.paymentModal.bookingId);
+                if(idx > -1) all[idx].paid = true;
+                await dbBookings.setItem('all_bookings', all);
+                
+                const myIdx = state.bookings.findIndex(b => b.id === state.paymentModal.bookingId);
+                if(myIdx > -1) state.bookings[myIdx].paid = true;
+
+                state.isSubmitting = false;
+                window.closePayment();
+                window.showToast("Pago acreditado", "success");
+            }, 1500);
+        };
+
+        window.toggleLang = () => {
+            haptic();
+            currentLang = currentLang === 'es' ? 'en' : 'es';
+            localStorage.setItem('app_lang', currentLang);
+            renderApp();
+        };
+
+        // ---------- 5. RENDERIZADO VISTAS ----------
+        const renderLogin = () => `
+            <div class="min-h-screen flex flex-col items-center justify-center p-8 text-center fade-in bg-[url('https://images.unsplash.com/photo-1542314831-c6a4d14d8c85?auto=format&fit=crop&q=80&w=800')] bg-cover bg-center">
+                <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+                <div class="relative z-10 w-full max-w-sm glass-card rounded-[32px] p-8">
+                    <div class="w-20 h-20 bg-black text-white rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-2xl">
+                        <i data-lucide="moon" class="w-10 h-10"></i>
+                    </div>
+                    <h1 class="text-3xl font-extrabold tracking-tight text-gray-900 mb-2">${t('welcome')}</h1>
+                    <p class="text-gray-600 mb-10 font-medium">${t('slogan')}</p>
+                    
+                    <div class="space-y-4">
+                        <button onclick="window.handleLogin('google')" class="btn-active w-full flex items-center justify-center gap-3 bg-black text-white font-semibold py-4 px-6 rounded-2xl shadow-lg">
+                            <i data-lucide="apple" class="w-5 h-5"></i>
+                            ${t('loginGoogle').replace('Google', 'Apple')}
+                        </button>
+                        <button onclick="window.handleLogin('guest')" class="btn-active w-full flex items-center justify-center gap-3 bg-white/50 text-gray-800 font-semibold py-4 px-6 rounded-2xl">
+                            ${t('orContinue')}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const renderHome = () => `
+            <div class="space-y-6 fade-in px-5 pt-safe mt-6">
+                <div class="flex justify-between items-center mb-2">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">${new Date().toLocaleDateString(currentLang, {weekday:'long', month:'long', day:'numeric'})}</p>
+                        <h1 class="text-4xl font-extrabold tracking-tight">Nova.</h1>
+                    </div>
+                    <div class="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center text-xl shadow-lg">${state.user?.avatar}</div>
+                </div>
+
+                <div class="relative rounded-[32px] overflow-hidden h-72 shadow-2xl">
+                    <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=800" class="w-full h-full object-cover" alt="hotel">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
+                        <h2 class="text-2xl font-bold text-white mb-1">Tu escapada perfecta</h2>
+                        <button onclick="window.setTab('explore')" class="btn-active mt-3 bg-white/20 backdrop-blur-md text-white px-5 py-2.5 rounded-full font-semibold text-sm w-max flex items-center gap-2">
+                            ${t('bookNow')} <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-bold text-gray-900 mt-8 mb-4">${t('featured')}</h3>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="glass-card rounded-[24px] p-4 text-center btn-active" onclick="window.showToast('Acceso a WiFi 6E activado')">
+                        <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3"><i data-lucide="wifi" class="w-5 h-5"></i></div>
+                        <p class="text-xs font-semibold text-gray-700">WiFi 6E</p>
+                    </div>
+                    <div class="glass-card rounded-[24px] p-4 text-center btn-active" onclick="window.showToast('Reserva de Spa próximamente')">
+                        <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-3"><i data-lucide="sparkles" class="w-5 h-5"></i></div>
+                        <p class="text-xs font-semibold text-gray-700">Spa</p>
+                    </div>
+                    <div class="glass-card rounded-[24px] p-4 text-center btn-active" onclick="window.showToast('Menú de Alta Cocina')">
+                        <div class="w-10 h-10 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-3"><i data-lucide="utensils" class="w-5 h-5"></i></div>
+                        <p class="text-xs font-semibold text-gray-700">Cocina</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const renderExplore = () => {
+            const isInvalid = state.searchDates.checkIn >= state.searchDates.checkOut;
+            return `
+                <div class="space-y-6 fade-in px-5 pt-safe mt-6">
+                    <h1 class="text-4xl font-extrabold tracking-tight">${t('exploreRooms')}</h1>
+                    
+                    <div class="glass-card p-2 rounded-[32px] flex items-center gap-2 shadow-lg mb-6">
+                        <div class="flex-1 bg-white rounded-[24px] p-3 flex flex-col relative">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest absolute top-2 left-4">${t('checkIn')}</label>
+                            <input type="date" value="${state.searchDates.checkIn}" onchange="window.updateDate('checkIn', this.value)" class="w-full bg-transparent outline-none font-semibold text-gray-900 pt-3 px-1 relative z-10" min="${today}">
+                        </div>
+                        <div class="flex-1 bg-white rounded-[24px] p-3 flex flex-col relative">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest absolute top-2 left-4">${t('checkOut')}</label>
+                            <input type="date" value="${state.searchDates.checkOut}" onchange="window.updateDate('checkOut', this.value)" class="w-full bg-transparent outline-none font-semibold text-gray-900 pt-3 px-1 relative z-10" min="${state.searchDates.checkIn}">
+                        </div>
+                        <button onclick="window.startVoiceSearch()" class="btn-active w-14 h-14 rounded-full ${state.voiceActive ? 'bg-red-500 animate-pulse' : 'bg-black'} text-white flex items-center justify-center shadow-lg flex-shrink-0 mr-1">
+                            <i data-lucide="${state.voiceActive ? 'radio' : 'mic'}" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+
+                    <div class="space-y-6">
+                        ${HOTEL_ROOMS.map(room => {
+                            const status = getRoomStatus(room.id);
+                            const name = currentLang === 'es' ? room.name.es : room.name.en;
+                            return `
+                                <div class="glass-card rounded-[32px] overflow-hidden shadow-lg p-3">
+                                    <div class="h-48 relative rounded-[24px] overflow-hidden mb-3">
+                                        <img src="${room.image}" class="w-full h-full object-cover">
+                                        <div class="absolute top-3 right-3 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full font-bold text-sm shadow-sm">
+                                            $${room.price} <span class="text-[10px] text-gray-500 font-normal">/ noche</span>
+                                        </div>
+                                    </div>
+                                    <div class="px-2 pb-2">
+                                        <div class="flex justify-between items-end mb-3">
+                                            <div>
+                                                <h3 class="text-xl font-bold text-gray-900">${name}</h3>
+                                                <p class="text-sm text-gray-500 font-medium">${room.capacity} • ${room.type}</p>
+                                            </div>
+                                        </div>
+                                        ${(!status.available && !isInvalid) 
+                                            ? `<button disabled class="w-full py-3.5 bg-gray-100 text-gray-400 rounded-2xl font-bold text-sm">Ocupada por ${status.bookedBy}</button>`
+                                            : isInvalid
+                                            ? `<button disabled class="w-full py-3.5 bg-red-50 text-red-400 rounded-2xl font-bold text-sm">${t('invalidDates')}</button>`
+                                            : `<button onclick="window.openModal('${room.id}')" class="btn-active w-full py-3.5 bg-black text-white rounded-2xl font-bold text-sm shadow-md">${t('available')}</button>`
+                                        }
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        };
+
+        const renderBookings = () => `
+            <div class="space-y-6 fade-in px-5 pt-safe mt-6 min-h-screen">
+                <h1 class="text-4xl font-extrabold tracking-tight">${t('bookings')}</h1>
+                ${state.bookings.length === 0 ? `
+                    <div class="flex flex-col items-center justify-center h-64 text-center">
+                        <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4"><i data-lucide="ticket" class="w-8 h-8 text-gray-300"></i></div>
+                        <h3 class="text-xl font-bold text-gray-900">${t('noBookings')}</h3>
+                        <p class="text-gray-500 mt-2">Tus próximas aventuras aparecerán aquí.</p>
+                    </div>
+                ` : `
+                    <div class="space-y-5">
+                        ${state.bookings.map(b => {
+                            const name = currentLang === 'es' ? b.roomName.es || b.roomName : b.roomName.en || b.roomName;
+                            return `
+                            <div class="glass-card rounded-[32px] p-5 relative overflow-hidden shadow-lg border-l-4 ${b.paid ? 'border-l-green-500' : 'border-l-orange-500'}">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <p class="text-[10px] font-bold uppercase tracking-widest ${b.paid ? 'text-green-600' : 'text-orange-500'} mb-1">${b.paid ? t('paid') : t('unpaid')}</p>
+                                        <h3 class="text-xl font-bold text-gray-900">${name}</h3>
+                                        <p class="text-xs text-gray-500 font-mono mt-1">ID: ${b.id}</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-gray-50/50 rounded-[20px] p-4 flex justify-between items-center mb-4">
+                                    <div class="text-center">
+                                        <p class="text-xs text-gray-400 font-bold uppercase mb-1">${t('checkIn')}</p>
+                                        <p class="font-bold text-gray-900">${b.checkIn.split('-').reverse().join('/')}</p>
+                                    </div>
+                                    <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300"></i>
+                                    <div class="text-center">
+                                        <p class="text-xs text-gray-400 font-bold uppercase mb-1">${t('checkOut')}</p>
+                                        <p class="font-bold text-gray-900">${b.checkOut.split('-').reverse().join('/')}</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex gap-2 mt-2">
+                                    ${!b.paid ? `
+                                        <button onclick="window.openPayment('${b.id}', ${b.amount})" class="btn-active flex-1 bg-black text-white py-3 rounded-2xl font-bold text-sm">
+                                            ${t('payNow')} ($${b.amount})
+                                        </button>
+                                    ` : ''}
+                                    <button onclick="window.handleCancelBooking('${b.id}')" class="btn-active w-12 flex items-center justify-center bg-red-50 text-red-500 rounded-2xl">
+                                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `}).join('')}
+                    </div>
+                `}
+            </div>
+        `;
+
+        const renderProfile = () => `
+            <div class="space-y-6 fade-in px-5 pt-safe mt-6">
+                <h1 class="text-4xl font-extrabold tracking-tight">${t('profile')}</h1>
+                
+                <div class="glass-card rounded-[32px] p-6 text-center shadow-lg mt-8">
+                    <div class="w-24 h-24 bg-gradient-to-br from-gray-900 to-gray-600 text-white rounded-full flex items-center justify-center text-4xl font-bold mx-auto shadow-xl mb-4 transform -translate-y-12">
+                        ${state.user?.avatar}
+                    </div>
+                    <div class="-mt-8">
+                        <h2 class="text-2xl font-bold text-gray-900">${state.user?.displayName}</h2>
+                        <p class="text-gray-500 font-medium">${state.user?.email}</p>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-[32px] overflow-hidden shadow-sm mt-6">
+                    <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+                        <div class="flex items-center gap-3"><div class="w-8 h-8 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center"><i data-lucide="globe" class="w-4 h-4"></i></div><span class="font-semibold text-gray-700">${t('changeLanguage')}</span></div>
+                        <button onclick="window.toggleLang()" class="btn-active bg-gray-100 px-4 py-1.5 rounded-full font-bold text-sm uppercase">${currentLang}</button>
+                    </div>
+                    <button onclick="window.handleLogout()" class="btn-active w-full p-4 flex justify-between items-center text-red-500 text-left">
+                        <div class="flex items-center gap-3"><div class="w-8 h-8 bg-red-50 rounded-full flex items-center justify-center"><i data-lucide="log-out" class="w-4 h-4"></i></div><span class="font-semibold">${t('logout')}</span></div>
+                        <i data-lucide="chevron-right" class="w-5 h-5 opacity-50"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        const renderModals = () => {
+            let html = '';
+            // Modal de Reserva
+            if (state.bookingModal.isOpen) {
+                const r = state.bookingModal.room;
+                const name = currentLang === 'es' ? r.name.es : r.name.en;
+                const nights = Math.ceil((new Date(state.searchDates.checkOut) - new Date(state.searchDates.checkIn)) / 86400000);
+                const total = r.price * nights;
+                
+                html += `
+                    <div class="fixed inset-0 z-50 flex items-end justify-center">
+                        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="window.closeModal()"></div>
+                        <div class="relative w-full max-w-md bg-white rounded-t-[40px] p-6 shadow-2xl slide-up pb-safe">
+                            <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
+                            <h3 class="text-2xl font-bold text-gray-900 mb-2">${name}</h3>
+                            <div class="flex gap-4 text-sm font-medium text-gray-500 mb-6">
+                                <span><i data-lucide="calendar" class="w-4 h-4 inline mr-1"></i>${nights} ${t('nights')}</span>
+                                <span><i data-lucide="credit-card" class="w-4 h-4 inline mr-1"></i>$${total}</span>
+                            </div>
+
+                            <div class="bg-gray-50 rounded-[24px] p-4 mb-6">
+                                <label class="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">${t('guestName')}</label>
+                                <input type="text" value="${state.guestName}" oninput="window.updateName(this.value)" class="w-full bg-transparent outline-none font-bold text-lg mt-1 text-gray-900" placeholder="Ej. Steve Jobs">
+                            </div>
+
+                            <button onclick="window.handleBookRoom(event)" ${!state.guestName || state.isSubmitting ? 'disabled' : ''} class="btn-active w-full py-4 bg-black text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-50">
+                                ${state.isSubmitting ? '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Procesando...' : '<i data-lucide="apple" class="w-5 h-5"></i> ' + t('reserve')}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Modal de Pago
+            if (state.paymentModal.open) {
+                html += `
+                    <div class="fixed inset-0 z-50 flex items-end justify-center">
+                        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="window.closePayment()"></div>
+                        <div class="relative w-full max-w-md bg-white rounded-t-[40px] p-6 shadow-2xl slide-up pb-safe text-center">
+                            <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4"><i data-lucide="landmark" class="w-8 h-8"></i></div>
+                            <h3 class="text-2xl font-bold text-gray-900 mb-1">${t('totalToPay')}</h3>
+                            <p class="text-4xl font-extrabold tracking-tight mb-6">$${state.paymentModal.amount}</p>
+                            
+                            <div class="bg-gray-50 rounded-[24px] p-5 mb-6 text-left border border-gray-100">
+                                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">${t('cbuInfo')}</p>
+                                <div class="flex justify-between items-center">
+                                    <p class="font-mono font-bold text-gray-900 text-sm md:text-base">${state.paymentModal.cbu}</p>
+                                    <button onclick="window.copyCbu()" class="text-blue-600 bg-blue-50 p-2 rounded-xl"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                                </div>
+                            </div>
+
+                            <button onclick="window.processPayment()" ${state.isSubmitting ? 'disabled' : ''} class="btn-active w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-blue-200 disabled:opacity-50">
+                                ${state.isSubmitting ? t('simulatingPayment') : t('confirmPayment')}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            return html;
+        };
+
+        const renderTabBar = () => `
+            <nav class="fixed bottom-0 left-0 right-0 glass-nav pb-safe pt-2 px-6 flex justify-around z-40 max-w-md mx-auto">
+                ${['home', 'explore', 'bookings', 'profile'].map(tab => `
+                    <button onclick="window.setTab('${tab}')" class="flex flex-col items-center p-2 min-w-[64px] transition-colors relative ${state.activeTab === tab ? 'text-black' : 'text-gray-400 hover:text-gray-600'}">
+                        <i data-lucide="${tab === 'home' ? 'compass' : tab === 'explore' ? 'search' : tab === 'bookings' ? 'calendar-days' : 'user'}" class="w-6 h-6 mb-1 ${state.activeTab === tab ? 'fill-current' : ''}"></i>
+                        <span class="text-[10px] font-bold">${t(tab)}</span>
+                        ${tab === 'bookings' && state.bookings.length > 0 ? `<span class="absolute top-1 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>` : ''}
+                    </button>
+                `).join('')}
+            </nav>
+        `;
+
+        const renderApp = () => {
+            const root = document.getElementById('app-root');
+            if (state.loading) {
+                root.innerHTML = `<div class="min-h-screen flex items-center justify-center"><i data-lucide="loader-2" class="w-8 h-8 animate-spin text-gray-400"></i></div>`;
+            } else if (!state.user) {
+                root.innerHTML = renderLogin();
+            } else {
+                let content = '';
+                if(state.activeTab === 'home') content = renderHome();
+                if(state.activeTab === 'explore') content = renderExplore();
+                if(state.activeTab === 'bookings') content = renderBookings();
+                if(state.activeTab === 'profile') content = renderProfile();
+                
+                root.innerHTML = content + renderTabBar() + renderModals();
+            }
+            createIcons({ icons });
+        };
+
+        loadApp();
+    </script>
+</body>
+</html>
