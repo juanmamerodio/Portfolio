@@ -1,305 +1,476 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiero Alfajores - Campeones Mundiales</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+import React, { useState, useEffect, useMemo } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, 
+  GoogleAuthProvider, signInWithPopup, signOut 
+} from 'firebase/auth';
+import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { 
+  Search, CalendarDays, User as UserIcon, LogOut, Info, 
+  Trash2, BedDouble, ChevronRight, CheckCircle2
+} from 'lucide-react';
+
+// --- CONFIGURACIÓN DE FIREBASE ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'hotel-nova-ios';
+
+// --- TIPOS DE DATOS (TypeScript) ---
+type Room = { id: string; name: string; type: string; capacity: string; price: number; image: string };
+type Booking = { id: string; roomId: string; roomName: string; guestName: string; checkIn: string; checkOut: string; userId: string; createdAt?: any };
+type Tab = 'explore' | 'bookings' | 'profile';
+
+const HOTEL_ROOMS: Room[] = [
+  { id: '101', name: 'Suite Presidencial', type: 'Suite', capacity: '4 personas', price: 250, image: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&q=80&w=400' },
+  { id: '102', name: 'Doble Premium', type: 'Doble', capacity: '2 personas', price: 120, image: 'https://images.unsplash.com/photo-1560185016-3ae1746b412e?auto=format&fit=crop&q=80&w=400' },
+  { id: '103', name: 'Familiar Deluxe', type: 'Familiar', capacity: '6 personas', price: 180, image: 'https://images.unsplash.com/photo-1582719478250-c8940994cb4e?auto=format&fit=crop&q=80&w=400' },
+  { id: '201', name: 'Simple Business', type: 'Simple', capacity: '1 persona', price: 80, image: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&q=80&w=400' },
+];
+
+export default function App() {
+  // --- ESTADOS ---
+  const [user, setUser] = useState<any>(null);
+  const [isSimulatedUser, setIsSimulatedUser] = useState(false); // Por si falla el popup de Google en el iframe
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [activeTab, setActiveTab] = useState<Tab>('explore');
+  const [loading, setLoading] = useState(true);
+  
+  // Fechas
+  const today = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const [searchDates, setSearchDates] = useState({ checkIn: today, checkOut: tomorrow });
+  
+  // UI States
+  const [bookingModal, setBookingModal] = useState<{ isOpen: boolean; room: Room | null }>({ isOpen: false, room: null });
+  const [guestName, setGuestName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // --- 1. AUTENTICACIÓN ---
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (error) {
+        console.error("Error init auth:", error);
+      }
+    };
+    initAuth();
+
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // --- 2. DATOS EN TIEMPO REAL ---
+  useEffect(() => {
+    if (!user) return;
+
+    const bookingsRef = collection(db, 'artifacts', appId, 'public', 'data', 'hotel_bookings');
+    const unsubscribe = onSnapshot(bookingsRef, (snapshot) => {
+      const fetchedBookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
+      setBookings(fetchedBookings);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching bookings:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // --- LÓGICA DE NEGOCIO ---
+  const isLoggedIn = user && (!user.isAnonymous || isSimulatedUser);
+
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.warn("Popup bloqueado por entorno seguro. Simulando inicio de sesión iOS...");
+      setIsSimulatedUser(true); // Fallback para que puedas probar la app aunque el navegador bloquee el popup
+    }
+  };
+
+  const handleLogout = async () => {
+    if (isSimulatedUser) {
+      setIsSimulatedUser(false);
+      setActiveTab('explore');
+    } else {
+      await signOut(auth);
+      // Tras desloguear, Firebase vuelve a disparar onAuthStateChanged.
+      // Para mantener la app viva (Rule 3), volvemos a anónimo
+      signInAnonymously(auth);
+      setActiveTab('explore');
+    }
+  };
+
+  const getRoomStatus = (roomId: string) => {
+    const { checkIn, checkOut } = searchDates;
+    if (!checkIn || !checkOut || checkIn >= checkOut) return { available: false, reason: 'invalid' };
+
+    const overlapping = bookings.find(b => b.roomId === roomId && b.checkIn < checkOut && b.checkOut > checkIn);
+    return overlapping ? { available: false, bookedBy: overlapping.guestName } : { available: true };
+  };
+
+  const handleBookRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !guestName.trim() || !bookingModal.room) return;
     
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'brand-brown': '#3E2723',
-                        'brand-gold': '#D4AF37',
-                        'brand-cream': '#F5F5DC',
-                        'brand-light': '#FAF3E0',
-                        'brand-dark': '#1A120B'
-                    },
-                    fontFamily: {
-                        serif: ['"Playfair Display"', 'serif'],
-                        sans: ['"Lato"', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        /* Animaciones personalizadas */
-        .fade-in-up {
-            opacity: 0;
-            transform: translateY(30px);
-            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
-        }
+    setIsSubmitting(true);
+    try {
+      const bookingsRef = collection(db, 'artifacts', appId, 'public', 'data', 'hotel_bookings');
+      await addDoc(bookingsRef, {
+        roomId: bookingModal.room.id,
+        roomName: bookingModal.room.name,
+        guestName: guestName.trim(),
+        checkIn: searchDates.checkIn,
+        checkOut: searchDates.checkOut,
+        userId: user.uid,
+        createdAt: serverTimestamp()
+      });
+      setGuestName('');
+      setBookingModal({ isOpen: false, room: null });
+      setActiveTab('bookings'); // Llevamos al usuario a ver su nueva reserva
+    } catch (error) {
+      console.error("Error booking:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'hotel_bookings', bookingId));
+    } catch (error) {
+      console.error("Error canceling booking:", error);
+    }
+  };
+
+  const myBookings = bookings.filter(b => b.userId === user?.uid);
+
+  // --- RENDERIZADO iOS STYLE ---
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  // Pantalla de Login (Estilo Apple ID)
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mb-8 shadow-xl shadow-blue-200">
+          <BedDouble className="w-10 h-10 text-white" />
+        </div>
+        <h1 className="text-3xl font-semibold tracking-tight text-gray-900 mb-2">Nova Hotels</h1>
+        <p className="text-gray-500 mb-12 max-w-xs">Iniciá sesión para gestionar tus reservas y acceder a habitaciones exclusivas.</p>
         
-        .visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        <button 
+          onClick={handleGoogleLogin}
+          className="w-full max-w-sm flex items-center justify-center gap-3 bg-white border border-gray-200 text-gray-800 font-medium py-3.5 px-4 rounded-xl shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-all"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Continuar con Google
+        </button>
+      </div>
+    );
+  }
 
-        .alfajor-float {
-            animation: float 6s ease-in-out infinite;
-        }
+  // App Principal
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans pb-24 selection:bg-blue-200">
+      
+      {/* HEADER iOS */}
+      <div className="pt-12 pb-4 px-6 bg-white sticky top-0 z-20 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+          {activeTab === 'explore' && 'Explorar'}
+          {activeTab === 'bookings' && 'Mis Reservas'}
+          {activeTab === 'profile' && 'Mi Perfil'}
+        </h1>
+      </div>
 
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
-            100% { transform: translateY(0px); }
-        }
-
-        .gold-glow {
-            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
-        }
+      <main className="px-6 pt-6">
         
-        /* Estilos para el scroll suave */
-        html {
-            scroll-behavior: smooth;
-        }
-    </style>
-</head>
-<body class="bg-brand-light text-brand-brown font-sans overflow-x-hidden">
-
-    <!-- Navbar -->
-    <nav class="fixed w-full z-50 transition-all duration-300 bg-brand-brown/95 backdrop-blur-sm text-brand-cream shadow-lg py-4">
-        <div class="container mx-auto px-6 flex justify-between items-center">
-            <a href="#" class="font-serif text-2xl font-bold italic tracking-wider flex items-center gap-2">
-                Quiero <span class="text-xs not-italic bg-brand-gold text-brand-brown px-2 py-0.5 rounded-full font-sans font-bold">EST. 2023</span>
-            </a>
-            <div class="hidden md:flex gap-8 font-light tracking-wide text-sm uppercase">
-                <a href="#inicio" class="hover:text-brand-gold transition-colors">Inicio</a>
-                <a href="#historia" class="hover:text-brand-gold transition-colors">Nosotros</a>
-                <a href="#campeon" class="text-brand-gold font-bold hover:text-white transition-colors">El Campeón</a>
-                <a href="#contacto" class="hover:text-brand-gold transition-colors">Contacto</a>
+        {/* --- TAB: EXPLORAR (Hacer Reservas) --- */}
+        {activeTab === 'explore' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Buscador de fechas */}
+            <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1 mb-1 block">Entrada</label>
+                  <input 
+                    type="date" 
+                    value={searchDates.checkIn}
+                    onChange={e => setSearchDates({...searchDates, checkIn: e.target.value})}
+                    min={today}
+                    className="w-full bg-gray-50 text-gray-900 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1 mb-1 block">Salida</label>
+                  <input 
+                    type="date" 
+                    value={searchDates.checkOut}
+                    onChange={e => setSearchDates({...searchDates, checkOut: e.target.value})}
+                    min={searchDates.checkIn || today}
+                    className="w-full bg-gray-50 text-gray-900 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+                  />
+                </div>
+              </div>
             </div>
-            <!-- Mobile Menu Icon (Visual only for this demo) -->
-            <button class="md:hidden">
-                <i data-lucide="menu" class="w-6 h-6"></i>
-            </button>
-        </div>
-    </nav>
 
-    <!-- Hero Section -->
-    <section id="inicio" class="relative min-h-screen flex items-center justify-center overflow-hidden bg-brand-brown">
-        <!-- Background Overlay gradient -->
-        <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1558961363-fa8fdf82db35?q=80&w=2565&auto=format&fit=crop')] bg-cover bg-center opacity-20"></div>
-        <div class="absolute inset-0 bg-gradient-to-t from-brand-brown via-transparent to-brand-brown/80"></div>
+            {/* Lista de Habitaciones */}
+            <div className="space-y-5">
+              <h2 className="text-xl font-semibold text-gray-900">Habitaciones Disponibles</h2>
+              {HOTEL_ROOMS.map(room => {
+                const status = getRoomStatus(room.id);
+                const isInvalid = searchDates.checkIn >= searchDates.checkOut;
 
-        <div class="container mx-auto px-6 relative z-10 text-center fade-in-up delay-100">
-            <div class="mb-6 flex justify-center">
-                <!-- Simulación de logo simple o copa -->
-                <i data-lucide="award" class="w-16 h-16 text-brand-gold mb-4"></i>
+                return (
+                  <div key={room.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 flex flex-col sm:flex-row">
+                    <div className="h-48 sm:h-auto sm:w-1/3 relative">
+                      <img src={room.image} alt={room.name} className="w-full h-full object-cover" />
+                      {!status.available && !isInvalid && (
+                        <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center">
+                          <span className="bg-gray-900 text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide">
+                            Ocupada
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-5 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start mb-1">
+                          <h3 className="text-lg font-bold text-gray-900">{room.name}</h3>
+                          <span className="text-blue-600 font-semibold">${room.price}<span className="text-sm font-normal text-gray-500">/n</span></span>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-4">{room.capacity} • {room.type}</p>
+                      </div>
+                      
+                      {status.available && !isInvalid ? (
+                        <button 
+                          onClick={() => setBookingModal({ isOpen: true, room })}
+                          className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-sm shadow-blue-200 active:scale-[0.98] transition-all"
+                        >
+                          Reservar ahora
+                        </button>
+                      ) : isInvalid ? (
+                        <div className="w-full py-3 bg-gray-100 text-gray-400 rounded-xl font-medium text-center text-sm">
+                          Revisá las fechas
+                        </div>
+                      ) : (
+                        <div className="w-full py-3 bg-gray-50 text-gray-500 rounded-xl font-medium text-center text-sm flex items-center justify-center gap-2">
+                          <Info className="w-4 h-4" /> Reservada por {status.bookedBy?.split(' ')[0]}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <h2 class="text-brand-gold font-sans font-bold tracking-[0.2em] text-sm uppercase mb-4">De Campana para el mundo</h2>
-            <h1 class="font-serif text-5xl md:text-7xl lg:text-8xl text-brand-cream mb-6 leading-tight">
-                El sabor de <br><span class="italic text-brand-gold gold-glow">la gloria</span>
-            </h1>
-            <p class="text-brand-cream/80 text-lg md:text-xl max-w-2xl mx-auto mb-10 font-light">
-                Descubrí el alfajor artesanal que conquistó al jurado y se coronó Campeón Mundial 2023. Una experiencia única en cada bocado.
-            </p>
+          </div>
+        )}
+
+        {/* --- TAB: MIS RESERVAS --- */}
+        {activeTab === 'bookings' && (
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {myBookings.length === 0 ? (
+              <div className="text-center py-20">
+                <CalendarDays className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No tenés reservas</h3>
+                <p className="text-gray-500">Cuando reserves una habitación, va a aparecer acá.</p>
+                <button 
+                  onClick={() => setActiveTab('explore')}
+                  className="mt-6 text-blue-600 font-semibold"
+                >
+                  Ir a Explorar
+                </button>
+              </div>
+            ) : (
+              myBookings.map(booking => (
+                <div key={booking.id} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Confirmada</p>
+                      <h3 className="text-lg font-bold text-gray-900">{booking.roomName}</h3>
+                    </div>
+                    <button 
+                      onClick={() => handleCancelBooking(booking.id)}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                      title="Cancelar Reserva"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center mb-4">
+                    <div className="text-center flex-1">
+                      <p className="text-xs text-gray-500 mb-0.5">Entrada</p>
+                      <p className="font-semibold text-gray-900">{booking.checkIn.split('-').reverse().join('/')}</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-300 mx-2" />
+                    <div className="text-center flex-1">
+                      <p className="text-xs text-gray-500 mb-0.5">Salida</p>
+                      <p className="font-semibold text-gray-900">{booking.checkOut.split('-').reverse().join('/')}</p>
+                    </div>
+                  </div>
+                  
+                  <p className="text-sm text-gray-600 flex items-center gap-2">
+                    <UserIcon className="w-4 h-4" /> A nombre de: <strong>{booking.guestName}</strong>
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* --- TAB: PERFIL --- */}
+        {activeTab === 'profile' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 text-center">
+              <div className="w-24 h-24 bg-gradient-to-tr from-blue-500 to-indigo-500 rounded-full mx-auto flex items-center justify-center shadow-lg mb-4 text-white text-3xl font-bold">
+                {(user?.displayName || 'Usuario')[0].toUpperCase()}
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">{isSimulatedUser ? 'Usuario de Prueba' : user?.displayName || 'Usuario'}</h2>
+              <p className="text-gray-500">{isSimulatedUser ? 'test@hotelnova.com' : user?.email || 'Cuenta vinculada'}</p>
+            </div>
+
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-4 border-b border-gray-50 flex items-center justify-between text-gray-700">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><CheckCircle2 className="w-5 h-5"/></div>
+                  <span className="font-medium">Reservas activas</span>
+                </div>
+                <span className="font-bold text-gray-900">{myBookings.length}</span>
+              </div>
+              <button 
+                onClick={handleLogout}
+                className="w-full p-4 flex items-center justify-between text-red-600 active:bg-red-50 transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-50 rounded-lg"><LogOut className="w-5 h-5"/></div>
+                  <span className="font-medium">Cerrar Sesión</span>
+                </div>
+                <ChevronRight className="w-5 h-5 opacity-50" />
+              </button>
+            </div>
+          </div>
+        )}
+
+      </main>
+
+      {/* --- TAB BAR INFERIOR (iOS Style) --- */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-gray-200 pb-safe pt-2 px-6 flex justify-around z-30">
+        <button 
+          onClick={() => setActiveTab('explore')}
+          className={`flex flex-col items-center p-2 min-w-[64px] transition-colors ${activeTab === 'explore' ? 'text-blue-600' : 'text-gray-400'}`}
+        >
+          <Search className="w-6 h-6 mb-1" />
+          <span className="text-[10px] font-medium">Explorar</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('bookings')}
+          className={`flex flex-col items-center p-2 min-w-[64px] transition-colors relative ${activeTab === 'bookings' ? 'text-blue-600' : 'text-gray-400'}`}
+        >
+          <CalendarDays className="w-6 h-6 mb-1" />
+          <span className="text-[10px] font-medium">Reservas</span>
+          {myBookings.length > 0 && (
+            <span className="absolute top-1 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+          )}
+        </button>
+        <button 
+          onClick={() => setActiveTab('profile')}
+          className={`flex flex-col items-center p-2 min-w-[64px] transition-colors ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}
+        >
+          <UserIcon className="w-6 h-6 mb-1" />
+          <span className="text-[10px] font-medium">Perfil</span>
+        </button>
+      </nav>
+
+      {/* --- MODAL DE RESERVA (iOS Bottom Sheet Style) --- */}
+      {bookingModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            onClick={() => !isSubmitting && setBookingModal({ isOpen: false, room: null })}
+          ></div>
+          
+          <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
+            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 sm:hidden"></div>
             
-            <div class="flex flex-col md:flex-row gap-4 justify-center">
-                <a href="https://api.whatsapp.com/send?phone=5493489350693" target="_blank" class="bg-brand-gold text-brand-brown px-8 py-3 rounded-full font-bold hover:bg-white transition-colors duration-300 flex items-center justify-center gap-2">
-                    <i data-lucide="message-circle" class="w-5 h-5"></i>
-                    Pedí el tuyo
-                </a>
-                <a href="#campeon" class="border border-brand-cream text-brand-cream px-8 py-3 rounded-full hover:bg-brand-cream hover:text-brand-brown transition-colors duration-300">
-                    Conocé al Campeón
-                </a>
-            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">Completar Reserva</h3>
+            <p className="text-gray-500 mb-6">{bookingModal.room?.name}</p>
+
+            <form onSubmit={handleBookRoom} className="space-y-5">
+              <div className="bg-gray-50 p-4 rounded-2xl flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-gray-500">Del</p>
+                  <p className="font-semibold">{searchDates.checkIn.split('-').reverse().join('/')}</p>
+                </div>
+                <div className="w-px h-8 bg-gray-200"></div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Al</p>
+                  <p className="font-semibold">{searchDates.checkOut.split('-').reverse().join('/')}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Titular de la reserva
+                </label>
+                <input 
+                  type="text" 
+                  required
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="Ej. Juan Pérez"
+                  className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3.5 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
+                />
+                <p className="text-xs text-gray-500 mt-2 ml-1">
+                  La habitación estará a este nombre de manera exclusiva.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="submit"
+                  disabled={!guestName.trim() || isSubmitting}
+                  className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-blue-200 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100"
+                >
+                  {isSubmitting ? 'Confirmando...' : `Confirmar por $${bookingModal.room?.price}`}
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setBookingModal({ isOpen: false, room: null })}
+                  className="w-full py-3 mt-2 text-gray-500 font-semibold"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-    </section>
+      )}
 
-    <!-- About Section -->
-    <section id="historia" class="py-24 bg-brand-light">
-        <div class="container mx-auto px-6">
-            <div class="flex flex-col md:flex-row items-center gap-16">
-                <div class="w-full md:w-1/2 relative fade-in-up">
-                    <div class="absolute -top-4 -left-4 w-24 h-24 bg-brand-gold/20 rounded-full z-0"></div>
-                    <!-- Placeholder Image that represents artisan work -->
-                    <img src="https://scontent.cdninstagram.com/v/t51.75761-15/475873739_18035716475599580_1399407905316463665_n.webp?_nc_cat=102&ig_cache_key=MzU1ODQzNDE3Nzg3MzAyMzgxNw%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6InhwaWRzLjEwODB4MTA4MC5zZHIuQzMifQ%3D%3D&_nc_ohc=v1pYFOXnoCEQ7kNvwFyT33i&_nc_oc=AdkIHSU0LUkujcIpNPpcidAwRh4j0WO8k128MsLujuX3r2Dep8mWZ2qqzwLvbOLWw3YGtifmGgFgWK2hB6uSXV_R&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&_nc_gid=G0-TI3akdAraoYCB8p0eDQ&oh=00_AfgnWWTRxuEuVeyiZLPwo8dCX3O-uffCvs8E1q8rNShtEw&oe=693145E7" alt="Elaboración artesanal" class="rounded-lg shadow-2xl relative z-10 w-full object-cover h-[500px]">
-                    <div class="absolute -bottom-6 -right-6 bg-white p-6 shadow-xl rounded-lg z-20 max-w-xs hidden md:block">
-                        <p class="font-serif italic text-brand-brown text-xl">"Pasión en cada detalle."</p>
-                    </div>
-                </div>
-                
-                <div class="w-full md:w-1/2 fade-in-up delay-200">
-                    <h3 class="text-brand-gold font-bold uppercase tracking-widest mb-2">Nuestra Historia</h3>
-                    <h2 class="font-serif text-4xl md:text-5xl text-brand-brown mb-6">Artesanos de Campana</h2>
-                    <p class="text-gray-600 mb-6 leading-relaxed">
-                        Somos un emprendimiento familiar nacido en el corazón de Campana, Buenos Aires. En <strong>Quiero</strong>, no solo hacemos alfajores; creamos momentos. Cada pieza es elaborada a mano, respetando los tiempos y utilizando materias primas de la más alta calidad.
-                    </p>
-                    <p class="text-gray-600 mb-8 leading-relaxed">
-                        Nuestro compromiso con la excelencia nos llevó a competir con los mejores, demostrando que con pasión y dedicación, se puede llegar a lo más alto.
-                    </p>
-                    
-                    <div class="grid grid-cols-3 gap-4 border-t border-brand-brown/10 pt-8">
-                        <div class="text-center">
-                            <i data-lucide="map-pin" class="w-6 h-6 text-brand-brown mx-auto mb-2"></i>
-                            <span class="text-sm font-bold block">Maipú 915</span>
-                            <span class="text-xs text-gray-500">Campana</span>
-                        </div>
-                        <div class="text-center border-l border-brand-brown/10">
-                            <i data-lucide="award" class="w-6 h-6 text-brand-gold mx-auto mb-2"></i>
-                            <span class="text-sm font-bold block">Mundial 2023</span>
-                            <span class="text-xs text-gray-500">Mejor Alfajor</span>
-                        </div>
-                        <div class="text-center border-l border-brand-brown/10">
-                            <i data-lucide="heart" class="w-6 h-6 text-brand-brown mx-auto mb-2"></i>
-                            <span class="text-sm font-bold block">100%</span>
-                            <span class="text-xs text-gray-500">Artesanal</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+      {/* Spacing for bottom nav */}
+      <div className="h-16"></div>
+    </div>
+  );
+}
 
-    <!-- The Champion Section (Dark Mode feel) -->
-    <section id="campeon" class="py-24 bg-brand-dark text-brand-cream relative overflow-hidden">
-        <!-- Decorative subtle football stars reference -->
-        <div class="absolute top-10 right-10 flex gap-2 opacity-20">
-            <i data-lucide="star" class="w-8 h-8 fill-current text-brand-gold"></i>
-            <i data-lucide="star" class="w-8 h-8 fill-current text-brand-gold mt-4"></i>
-            <i data-lucide="star" class="w-8 h-8 fill-current text-brand-gold"></i>
-        </div>
-
-        <div class="container mx-auto px-6 text-center relative z-10">
-            <div class="mb-4 inline-block fade-in-up">
-                <span class="bg-brand-gold text-brand-dark px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Edición Ganadora</span>
-            </div>
-            
-            <h2 class="font-serif text-5xl md:text-7xl mb-4 fade-in-up delay-100">El Campeón</h2>
-            <p class="text-xl md:text-2xl font-light text-brand-gold mb-12 fade-in-up delay-200">Homenaje a la Gloria Eterna 🇦🇷</p>
-
-            <div class="relative max-w-md mx-auto aspect-square mb-12 fade-in-up delay-300">
-                <!-- Circular background glow -->
-                <div class="absolute inset-0 bg-brand-gold/20 rounded-full blur-3xl transform scale-75"></div>
-                <!-- Alfajor Image (Placeholder for the actual product) -->
-                <!-- Ideally this would be a PNG with transparent background of the specific alfajor -->
-                <img src="https://scontent.cdninstagram.com/v/t51.75761-15/475632817_18035439764599580_4697985320331213094_n.webp?_nc_cat=111&ig_cache_key=MzU1NjQzMzY4MTI1MjQwMTY1OQ%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6InhwaWRzLjEwODB4MTA4MC5zZHIuQzMifQ%3D%3D&_nc_ohc=qd-bZPNkYXwQ7kNvwFLcxQF&_nc_oc=AdkKCYIjvjPRuxHENoYR02YzBIQ0avnFUDVn-Rwlu20_Lm7Ct0SqD3onnEDhBUy478JMZWT1qAmJH1CmQBfLJbhq&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&_nc_gid=G0-TI3akdAraoYCB8p0eDQ&oh=00_Afi_hSu9JXPAOLPYkqGGSooXJStDdvDHUBWhp-OMN0TtDg&oe=693151BE" onerror="this.src='https://images.unsplash.com/photo-1558326567-98ae2405596b?q=80&w=2526&auto=format&fit=crop'" alt="Alfajor Campeón Mundial" class="relative z-10 w-full h-full object-cover rounded-full border-4 border-brand-gold/30 shadow-[0_0_50px_rgba(212,175,55,0.3)] alfajor-float">
-                
-                <!-- Badge floating -->
-                <div class="absolute -right-4 top-10 bg-white text-brand-brown p-4 rounded-full shadow-lg z-20 animate-bounce" style="animation-duration: 3s;">
-                    <span class="block text-2xl font-bold font-serif">#1</span>
-                    <span class="text-xs uppercase font-bold">Mundial</span>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto text-left md:text-center fade-in-up delay-400">
-                <div class="p-6 border border-brand-gold/20 rounded-lg bg-brand-brown/30 backdrop-blur-sm">
-                    <h4 class="text-brand-gold font-bold text-lg mb-2">Triple Tentación</h4>
-                    <p class="text-sm text-gray-300">Tres capas de la masa más suave que vas a probar en tu vida.</p>
-                </div>
-                <div class="p-6 border border-brand-gold/20 rounded-lg bg-brand-brown/30 backdrop-blur-sm">
-                    <h4 class="text-brand-gold font-bold text-lg mb-2">Dulce de Leche</h4>
-                    <p class="text-sm text-gray-300">Abundante corazón de dulce de leche premium argentino.</p>
-                </div>
-                <div class="p-6 border border-brand-gold/20 rounded-lg bg-brand-brown/30 backdrop-blur-sm">
-                    <h4 class="text-brand-gold font-bold text-lg mb-2">Cobertura Real</h4>
-                    <p class="text-sm text-gray-300">Bañado en chocolate semiamargo de alta pureza.</p>
-                </div>
-            </div>
-
-            <div class="mt-12 fade-in-up delay-500">
-                <a href="https://api.whatsapp.com/send?phone=5493489350693&text=Hola!%20Quiero%20probar%20el%20alfajor%20campeón." target="_blank" class="inline-flex items-center gap-3 bg-brand-gold hover:bg-white text-brand-dark px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-brand-gold/20">
-                    Quiero probarlo
-                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
-                </a>
-            </div>
-        </div>
-    </section>
-
-    <!-- Location & Contact -->
-    <section id="contacto" class="py-24 bg-brand-cream relative">
-        <div class="container mx-auto px-6">
-            <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row fade-in-up">
-                
-                <div class="w-full md:w-1/2 p-10 flex flex-col justify-center bg-brand-brown text-brand-cream">
-                    <h3 class="font-serif text-3xl mb-6">Visitá nuestro local</h3>
-                    <div class="space-y-6">
-                        <div class="flex items-start gap-4">
-                            <i data-lucide="map-pin" class="w-6 h-6 text-brand-gold shrink-0 mt-1"></i>
-                            <div>
-                                <h4 class="font-bold text-brand-gold">Dirección</h4>
-                                <p>Maipú 915, Campana</p>
-                                <p class="text-sm text-gray-400">Buenos Aires, Argentina</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-4">
-                            <i data-lucide="clock" class="w-6 h-6 text-brand-gold shrink-0 mt-1"></i>
-                            <div>
-                                <h4 class="font-bold text-brand-gold">Horarios</h4>
-                                <p>Martes a Domingos</p>
-                                <p class="text-sm text-gray-400">Consultar feriados en Instagram</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-4">
-                            <i data-lucide="instagram" class="w-6 h-6 text-brand-gold shrink-0 mt-1"></i>
-                            <div>
-                                <h4 class="font-bold text-brand-gold">Seguinos</h4>
-                                <a href="https://www.instagram.com/alfajores.quiero/" target="_blank" class="hover:underline">@alfajores.quiero</a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-10 pt-8 border-t border-white/10">
-                        <p class="italic text-sm text-center">"Hacé tu pedido por WhatsApp y pasá a buscar la gloria."</p>
-                    </div>
-                </div>
-
-                <div class="w-full md:w-1/2 bg-gray-200 min-h-[300px] relative">
-                    <!-- Embed Google Maps Placeholder functionality -->
-                    <iframe 
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3294.045686884617!2d-58.9618!3d-34.1668!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bb0d97b0a8c2bf%3A0x123456789abcdef!2sMaip%C3%BA%20915%2C%20Campana%2C%20Provincia%20de%20Buenos%20Aires!5e0!3m2!1ses!2sar!4v1620000000000!5m2!1ses!2sar" 
-                        width="100%" 
-                        height="100%" 
-                        style="border:0;" 
-                        allowfullscreen="" 
-                        loading="lazy" 
-                        class="absolute inset-0 grayscale hover:grayscale-0 transition-all duration-500">
-                    </iframe>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <footer class="bg-brand-brown text-brand-light py-8 border-t border-white/10">
-        <div class="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="font-serif text-xl font-bold italic">Quiero</div>
-            <p class="text-sm text-brand-cream/60">© 2024 Quiero Alfajores Artesanales. Todos los derechos reservados.</p>
-            <div class="flex gap-4">
-                <a href="https://www.instagram.com/alfajores.quiero/" class="hover:text-brand-gold transition-colors"><i data-lucide="instagram" class="w-5 h-5"></i></a>
-                <a href="https://api.whatsapp.com/send?phone=5493489350693" class="hover:text-brand-gold transition-colors"><i data-lucide="phone" class="w-5 h-5"></i></a>
-            </div>
-        </div>
-    </footer>
-
-    <script>
-        // Inicializar iconos
-        lucide.createIcons();
-
-        // Intersection Observer para las animaciones on-scroll
-        const observerOptions = {
-            root: null,
-            rootMargin: '0px',
-            threshold: 0.1
-        };
-
-        const observer = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                    observer.unobserve(entry.target); // Dejar de observar una vez animado
-                }
-            });
-        }, observerOptions);
-
-        document.querySelectorAll('.fade-in-up').forEach((element) => {
-            observer.observe(element);
-        });
-    </script>
-</body>
-</html>
