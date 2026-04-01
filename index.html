@@ -208,33 +208,38 @@
                 this.db = localforage.createInstance({ name: "NovaDB", storeName: "bookings" });
                 this.userDb = localforage.createInstance({ name: "NovaDB", storeName: "user" });
                 
+                this.render(); // FIX QA: Forzamos el render inicial para que se vea el spinner instantáneamente
                 this.init();
             }
             
             async init() {
                 try {
                     await this.loadData();
-                    // Simulamos latencia de red de 600ms para realismo QA
+                } catch (error) {
+                    console.warn('DB Error (Probable modo incógnito detectado):', error);
+                    // FIX QA: Fallback a memoria RAM si falla la DB local
+                    this.user = null;
+                    this.allBookings = [];
+                } finally {
+                    // FIX QA: Aseguramos que el estado de carga siempre termine, haya error o no
                     setTimeout(() => {
                         this.loading = false;
                         this.render();
                     }, 600);
-                } catch (error) {
-                    console.error('Error DB:', error);
-                    this.showToast('Error de conexión a la base de datos', 'error');
                 }
             }
             
             async loadData() {
-                this.user = await this.userDb.getItem('currentUser');
-                this.allBookings = await this.db.getItem('all_bookings') || [];
+                // Manejamos errores en cada promesa individualmente por seguridad en incógnito
+                this.user = await this.userDb.getItem('currentUser').catch(() => null);
+                this.allBookings = await this.db.getItem('all_bookings').catch(() => []) || [];
                 if (this.user) {
                     this.userBookings = this.allBookings.filter(b => b.userId === this.user.uid);
                 }
             }
             
             async saveAllBookings() {
-                await this.db.setItem('all_bookings', this.allBookings);
+                await this.db.setItem('all_bookings', this.allBookings).catch(() => console.warn('Guardado en DB omitido por permisos del navegador'));
                 if (this.user) {
                     this.userBookings = this.allBookings.filter(b => b.userId === this.user.uid);
                 }
@@ -257,6 +262,8 @@
                 const toast = document.getElementById('toast-root');
                 const icon = document.getElementById('toast-icon');
                 const msg = document.getElementById('toast-message');
+                
+                if(!toast) return; // FIX QA: protección en caso de que el dom no haya cargado
                 
                 icon.setAttribute('data-lucide', type === 'success' ? 'check-circle-2' : type === 'error' ? 'alert-circle' : 'info');
                 icon.className = `w-5 h-5 ${type === 'success' ? 'text-green-400' : type === 'error' ? 'text-red-400' : 'text-blue-400'}`;
@@ -324,7 +331,7 @@
                         avatar: type === 'google' ? '🍎' : '👤'
                     };
                     
-                    await this.userDb.setItem('currentUser', user);
+                    await this.userDb.setItem('currentUser', user).catch(() => console.warn('Fallo DB usuario, usando memoria'));
                     this.user = user;
                     await this.loadData();
                     this.showToast(`${t('welcome')}, ${name}`);
@@ -334,7 +341,7 @@
             
             async handleLogout() {
                 this.haptic('heavy');
-                await this.userDb.removeItem('currentUser');
+                await this.userDb.removeItem('currentUser').catch(() => {});
                 this.user = null;
                 this.userBookings = [];
                 this.showToast("Sesión cerrada correctamente", "info");
@@ -479,6 +486,7 @@
             // ==================== RENDERIZADO (HTML Expert) ====================
             render() {
                 const root = document.getElementById('app-root');
+                if (!root) return; // Evita errores si se llama antes que el DOM cargue completo
                 
                 if (this.loading) {
                     root.innerHTML = `<div class="min-h-screen flex items-center justify-center bg-[#F7F7F7]"><div class="spinner border-t-black"></div></div>`;
