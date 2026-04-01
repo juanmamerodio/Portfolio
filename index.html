@@ -133,7 +133,8 @@
     <div id="app-root" class="min-h-screen max-w-lg mx-auto bg-[#F7F7F7] shadow-2xl overflow-hidden relative"></div>
 
     <script type="module">
-        import { createIcons, icons } from 'https://unpkg.com/lucide@latest/dist/lucide.esm.js';
+        // FIX QA: Eliminamos el import 'unpkg' como módulo porque falla en GitHub Pages por CORS/Resolución
+        // Usaremos directamente `window.lucide` que se carga en el <head>
         
         // ==================== 1. MULTILENGUAJE ====================
         const translations = {
@@ -199,7 +200,7 @@
                 
                 // Estados de UI Modales
                 this.bookingModal = { isOpen: false, room: null };
-                this.guestName = ''; // Solución QA: No re-renderiza todo el DOM al cambiar esto.
+                this.guestName = '';
                 this.paymentModal = { open: false, bookingId: null, cbu: '', amount: 0 };
                 this.isSubmitting = false;
                 this.voiceActive = false;
@@ -208,29 +209,29 @@
                 this.db = localforage.createInstance({ name: "NovaDB", storeName: "bookings" });
                 this.userDb = localforage.createInstance({ name: "NovaDB", storeName: "user" });
                 
-                this.render(); // FIX QA: Forzamos el render inicial para que se vea el spinner instantáneamente
+                this.render(); // Mostramos el spinner de entrada
                 this.init();
             }
             
             async init() {
                 try {
-                    await this.loadData();
+                    // FIX QA Anti-Cuelgues: Si la BD tarda más de 1.5s en responder, fuerza el error
+                    // Esto evita la pantalla blanca eterna en navegadores bloqueados (Incógnito, extensiones, GH Pages errors)
+                    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout DB local")), 1500));
+                    await Promise.race([this.loadData(), timeout]);
                 } catch (error) {
-                    console.warn('DB Error (Probable modo incógnito detectado):', error);
-                    // FIX QA: Fallback a memoria RAM si falla la DB local
+                    console.warn('DB Error o Bloqueo del Navegador. Entrando en Modo RAM:', error);
+                    // Fallback automático para que la app no se cuelgue nunca
                     this.user = null;
                     this.allBookings = [];
                 } finally {
-                    // FIX QA: Aseguramos que el estado de carga siempre termine, haya error o no
-                    setTimeout(() => {
-                        this.loading = false;
-                        this.render();
-                    }, 600);
+                    // Aseguramos que termine la carga sí o sí
+                    this.loading = false;
+                    this.render();
                 }
             }
             
             async loadData() {
-                // Manejamos errores en cada promesa individualmente por seguridad en incógnito
                 this.user = await this.userDb.getItem('currentUser').catch(() => null);
                 this.allBookings = await this.db.getItem('all_bookings').catch(() => []) || [];
                 if (this.user) {
@@ -239,7 +240,7 @@
             }
             
             async saveAllBookings() {
-                await this.db.setItem('all_bookings', this.allBookings).catch(() => console.warn('Guardado en DB omitido por permisos del navegador'));
+                await this.db.setItem('all_bookings', this.allBookings).catch(() => console.warn('Modo sin persistencia activado'));
                 if (this.user) {
                     this.userBookings = this.allBookings.filter(b => b.userId === this.user.uid);
                 }
@@ -258,24 +259,30 @@
             }
             
             // ==================== INTERACCIONES (Multimodal & UI) ====================
+            refreshIcons() {
+                // FIX QA: Llamar a lucide nativo y global del <head>
+                if (window.lucide && window.lucide.createIcons) {
+                    window.lucide.createIcons();
+                }
+            }
+
             showToast(message, type = 'success') {
                 const toast = document.getElementById('toast-root');
                 const icon = document.getElementById('toast-icon');
                 const msg = document.getElementById('toast-message');
                 
-                if(!toast) return; // FIX QA: protección en caso de que el dom no haya cargado
+                if(!toast) return;
                 
                 icon.setAttribute('data-lucide', type === 'success' ? 'check-circle-2' : type === 'error' ? 'alert-circle' : 'info');
                 icon.className = `w-5 h-5 ${type === 'success' ? 'text-green-400' : type === 'error' ? 'text-red-400' : 'text-blue-400'}`;
                 msg.innerText = message;
-                createIcons({ icons });
+                this.refreshIcons();
                 
                 toast.classList.add('show');
                 setTimeout(() => toast.classList.remove('show'), 3500);
             }
             
             haptic(style = 'light') {
-                // API de vibración nativa del navegador
                 if (navigator.vibrate) {
                     if (style === 'light') navigator.vibrate(10);
                     if (style === 'heavy') navigator.vibrate([20, 30, 20]);
@@ -294,7 +301,7 @@
                 
                 recognition.onstart = () => {
                     this.voiceActive = true;
-                    this.render(); // Mostramos el mic en rojo
+                    this.render();
                 };
                 
                 recognition.onresult = (event) => {
@@ -331,7 +338,7 @@
                         avatar: type === 'google' ? '🍎' : '👤'
                     };
                     
-                    await this.userDb.setItem('currentUser', user).catch(() => console.warn('Fallo DB usuario, usando memoria'));
+                    await this.userDb.setItem('currentUser', user).catch(() => console.warn('Usando memoria RAM temporal'));
                     this.user = user;
                     await this.loadData();
                     this.showToast(`${t('welcome')}, ${name}`);
@@ -348,7 +355,6 @@
                 this.render();
             }
             
-            // Solución QA: En vez de re-renderizar, solo actualizamos la variable de estado.
             handleNameInput(value) {
                 this.guestName = value;
                 const btn = document.getElementById('bookConfirmBtn');
@@ -362,14 +368,13 @@
                 this.haptic();
                 this.isSubmitting = true;
                 
-                // Actualizamos solo el botón para no perder el foco del input
                 const btn = document.getElementById('bookConfirmBtn');
                 if(btn) btn.innerHTML = '<div class="spinner spinner-white"></div>';
                 
                 setTimeout(async () => {
                     const room = this.bookingModal.room;
                     const nights = Math.ceil((new Date(this.searchDates.checkOut) - new Date(this.searchDates.checkIn)) / 86400000);
-                    const totalAmount = room.price * nights * 1.1; // Sumamos 10% impuestos
+                    const totalAmount = room.price * nights * 1.1;
                     
                     if (!this.isRoomAvailable(room.id, this.searchDates.checkIn, this.searchDates.checkOut)) {
                         this.showToast(t('occupied'), "error");
@@ -486,7 +491,7 @@
             // ==================== RENDERIZADO (HTML Expert) ====================
             render() {
                 const root = document.getElementById('app-root');
-                if (!root) return; // Evita errores si se llama antes que el DOM cargue completo
+                if (!root) return; 
                 
                 if (this.loading) {
                     root.innerHTML = `<div class="min-h-screen flex items-center justify-center bg-[#F7F7F7]"><div class="spinner border-t-black"></div></div>`;
@@ -495,7 +500,7 @@
                 
                 if (!this.user) {
                     root.innerHTML = this.renderLogin();
-                    createIcons({ icons });
+                    this.refreshIcons();
                     return;
                 }
                 
@@ -506,7 +511,7 @@
                 if (this.activeTab === 'profile') content = this.renderProfile();
                 
                 root.innerHTML = content + this.renderTabBar() + this.renderModals();
-                createIcons({ icons });
+                this.refreshIcons();
             }
             
             renderLogin() {
@@ -792,7 +797,6 @@
                                         </div>
                                     </div>
 
-                                    <!-- FIX QA: oninput ya no hace render(), solo actualiza variable -->
                                     <div class="mb-6">
                                         <label class="block text-sm font-bold text-gray-900 mb-2">${t('guestName')}</label>
                                         <input type="text" value="${this.guestName}" oninput="window.app.handleNameInput(this.value)" class="w-full bg-white border-2 border-gray-200 rounded-[16px] p-4 font-medium text-gray-900 focus:outline-none focus:border-black transition-colors text-lg" placeholder="Ej. Lionel Messi">
