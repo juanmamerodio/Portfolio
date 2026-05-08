@@ -1,846 +1,444 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Nova Hotels | Experiencia Airbnb x iOS</title>
-    <!-- Tailwind + Lucide + LocalForage -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Análisis del Sistema - El Mercadito (iOS 26 Edition)</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
+        :root {
+            --bg-color: #000000;
+            --glass-bg: rgba(30, 30, 32, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
-        
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #F7F7F7;
-            color: #222;
-            overscroll-behavior-y: none; /* Evita el rebote en iOS */
-        }
-        
-        /* Safe areas para dispositivos con notch */
-        .pt-safe { padding-top: env(safe-area-inset-top, 20px); }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
-        
-        /* Scroll suave oculto */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Glassmorphism refinado iOS 26 */
-        .glass-nav {
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(24px) saturate(180%);
-            -webkit-backdrop-filter: blur(24px) saturate(180%);
-            border-top: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.04);
-        }
-        
-        .glass-card {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
-            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
-        }
-        
-        .glass-card:active {
-            transform: scale(0.98);
-        }
-        
-        /* Toasts estilo Airbnb / Dynamic Island */
-        .airbnb-toast {
-            position: fixed;
-            top: env(safe-area-inset-top, 20px);
-            left: 50%;
-            transform: translateX(-50%) translateY(-150%) scale(0.9);
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(10px);
-            color: white;
-            padding: 14px 24px;
-            border-radius: 100px;
-            font-weight: 600;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            z-index: 9999;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
-            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            opacity: 0;
-            pointer-events: none;
-        }
-        
-        .airbnb-toast.show {
-            transform: translateX(-50%) translateY(0) scale(1);
-            opacity: 1;
-        }
-        
-        /* Animaciones */
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .fade-up { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        
-        @keyframes slideUpModal {
-            from { transform: translateY(100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        .slide-up-modal { animation: slideUpModal 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
 
-        /* Botones con efecto haptic */
-        .btn-haptic { transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        .btn-haptic:active { transform: scale(0.94); }
-        
-        /* Date picker personalizado oculto, usar click normal */
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            background: transparent; cursor: pointer; position: absolute; right: 0; top: 0; width: 100%; height: 100%; opacity: 0;
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: #ffffff;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
-        
-        /* Loading spinner */
-        .spinner {
-            border: 3px solid rgba(0, 0, 0, 0.1);
-            border-radius: 50%;
-            border-top: 3px solid #000;
-            width: 24px;
-            height: 24px;
-            animation: spin 0.8s linear infinite;
+
+        /* Animated Mesh Gradient Background */
+        .mesh-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            background: radial-gradient(at 0% 0%, rgba(28, 10, 89, 0.8) 0px, transparent 50%),
+                        radial-gradient(at 100% 0%, rgba(89, 10, 71, 0.8) 0px, transparent 50%),
+                        radial-gradient(at 100% 100%, rgba(10, 56, 89, 0.8) 0px, transparent 50%),
+                        radial-gradient(at 0% 100%, rgba(10, 89, 56, 0.8) 0px, transparent 50%);
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: breathe 15s ease-in-out infinite alternate;
         }
-        .spinner-white { border-top: 3px solid #fff; border-color: rgba(255,255,255,0.2); border-top-color: #fff; }
+
+        @keyframes breathe {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        /* Glassmorphism Card Style */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--glass-border);
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+            border-radius: 36px;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.5);
+            background: rgba(40, 40, 45, 0.55);
+        }
+
+        /* Floating Pill Nav */
+        .floating-nav {
+            background: rgba(15, 15, 15, 0.7);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 9999px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .mermaid-wrapper::-webkit-scrollbar { height: 6px; }
+        .mermaid-wrapper::-webkit-scrollbar-track { background: transparent; }
+        .mermaid-wrapper::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
         
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .star-rating { color: #FF385C; /* Airbnb Red */ font-size: 14px; }
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
     </style>
 </head>
-<body class="antialiased selection:bg-black/10">
+<body class="antialiased pb-32 selection:bg-blue-500/30">
 
-    <!-- Toast de Notificaciones -->
-    <div id="toast-root" class="airbnb-toast">
-        <i id="toast-icon" data-lucide="check-circle-2" class="w-5 h-5 text-green-400"></i>
-        <span id="toast-message">Mensaje</span>
-    </div>
+    <div class="mesh-bg"></div>
 
-    <!-- Contenedor Principal (App) - FIX QA: Modificado para ser Responsive -->
-    <div id="app-root" class="min-h-screen w-full md:max-w-3xl lg:max-w-5xl mx-auto bg-[#F7F7F7] shadow-2xl md:shadow-none overflow-hidden relative transition-all duration-300"></div>
+    <header class="pt-20 pb-12 px-6 max-w-5xl mx-auto text-center reveal active">
+        <div class="inline-flex items-center justify-center space-x-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 mb-6 backdrop-blur-md">
+            <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+            <span class="text-xs font-medium tracking-wide text-gray-300 uppercase">Sistema Interno v2.0</span>
+        </div>
+        <h1 class="text-5xl md:text-7xl font-bold tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500">
+            El Mercadito
+        </h1>
+        <p class="text-lg md:text-xl text-gray-400 font-light max-w-2xl mx-auto">
+            Análisis y diseño de relevamiento de estadísticas y Data Mining (Mermaid v11)
+        </p>
+    </header>
+
+    <nav class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-[95%] max-w-md">
+        <div class="floating-nav px-2 py-2 flex items-center justify-between overflow-x-auto no-scrollbar">
+            <a href="#der" class="text-xs font-medium px-3 py-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10 transition-colors">DER</a>
+            <a href="#dfd0" class="text-xs font-medium px-3 py-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10 transition-colors">DFD0</a>
+            <a href="#dfd1" class="text-xs font-medium px-3 py-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10 transition-colors">DFD1</a>
+            <a href="#dte" class="text-xs font-medium px-3 py-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10 transition-colors">DTE</a>
+            <a href="#usos" class="text-xs font-medium px-3 py-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10 transition-colors">Usos</a>
+            <a href="#dlr" class="text-xs font-medium px-3 py-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10 transition-colors">DLR</a>
+            <a href="#clases" class="text-xs font-medium px-3 py-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10 transition-colors">Clases</a>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 space-y-12">
+
+        <section id="der" class="reveal">
+            <div class="glass-card p-6 sm:p-10">
+                <div class="flex items-center space-x-4 mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <span class="font-bold">1</span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white">Diagrama Entidad-Relación</h2>
+                </div>
+                <div class="mermaid-wrapper w-full overflow-x-auto bg-black/40 rounded-2xl p-4 border border-white/5">
+<pre class="mermaid">
+erDiagram
+    CLIENTE ||--o{ TRANSACCION : "realiza"
+    TRANSACCION ||--|{ DETALLE_TRANSACCION : "contiene"
+    PRODUCTO ||--o{ DETALLE_TRANSACCION : "es parte de"
+
+    CLIENTE {
+        int dni PK
+        date fecha_nacimiento
+        int edad
+    }
+    
+    TRANSACCION {
+        int id_transaccion PK
+        int dni_cliente FK
+        date fecha
+        string metodo_pago
+    }
+    
+    DETALLE_TRANSACCION {
+        int id_transaccion FK
+        int id_producto FK
+        int cantidad
+    }
+    
+    PRODUCTO {
+        int id_producto PK
+        string nombre
+        string categoria
+    }
+</pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="dfd0" class="reveal">
+            <div class="glass-card p-6 sm:p-10">
+                <div class="flex items-center space-x-4 mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                        <span class="font-bold">2</span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white">DFD - Nivel 0 (Contexto)</h2>
+                </div>
+                <div class="mermaid-wrapper w-full overflow-x-auto bg-black/40 rounded-2xl p-4 border border-white/5">
+<pre class="mermaid">
+flowchart TD
+    Cliente([Cliente]) -- "DNI (Pago tarjeta)" --> Sistema((Sistema de Estadísticas))
+    Sistema -- "Consulta DNI" --> API_Gobierno([API Gobierno])
+    API_Gobierno -- "Fecha Nacimiento" --> Sistema
+    Gerente([Gerente / Dueño]) -- "Criterios: Edad, Mes, Año" --> Sistema
+    Sistema -- "Reportes: Duplas, Tríos, Cuaternas" --> Gerente
+</pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="dfd1" class="reveal">
+            <div class="glass-card p-6 sm:p-10">
+                <div class="flex items-center space-x-4 mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg shadow-pink-500/30">
+                        <span class="font-bold">3</span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white">DFD - Nivel 1</h2>
+                </div>
+                <div class="mermaid-wrapper w-full overflow-x-auto bg-black/40 rounded-2xl p-4 border border-white/5">
+<pre class="mermaid">
+flowchart TD
+    Cliente([Cliente]) -- "DNI" --> P1(1. Registrar Transacción)
+    P1 -- "Consulta DNI" --> API_Gobierno([API Gobierno])
+    API_Gobierno -- "Fecha Nacimiento" --> P1
+    
+    P1 -- "DNI, Fecha Nac" --> D1[(Clientes)]
+    P1 -- "Datos Venta" --> D2[(Transacciones)]
+    
+    Gerente([Gerente]) -- "Edad, Periodo" --> P2(2. Generar Estadísticas)
+    D1 -- "Datos Cliente" --> P2
+    D2 -- "Historial Compras" --> P2
+    
+    P2 -- "Análisis" --> P3(3. Identificar Patrones)
+    P3 -- "Reporte Patrones" --> Gerente
+</pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="dte" class="reveal">
+            <div class="glass-card p-6 sm:p-10">
+                <div class="flex items-center space-x-4 mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                        <span class="font-bold">4</span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white">Transición de Estados (DTE)</h2>
+                </div>
+                <div class="mermaid-wrapper w-full overflow-x-auto bg-black/40 rounded-2xl p-4 border border-white/5">
+<pre class="mermaid">
+stateDiagram-v2
+    [*] --> Iniciada: Inicia compra
+    Iniciada --> EsperandoPago: Registran productos
+    
+    EsperandoPago --> Efectivo: Efectivo
+    Efectivo --> Completada: Pago recibido
+    
+    EsperandoPago --> Tarjeta: Tarjeta
+    Tarjeta --> IngresandoDNI: Solicita DNI
+    IngresandoDNI --> ConsultandoAPI: DNI ingresado
+    
+    ConsultandoAPI --> DNI_Valido: API OK
+    ConsultandoAPI --> DNI_Invalido: API Falla
+    
+    DNI_Valido --> ProcesandoPago: Continua
+    DNI_Invalido --> ProcesandoPago: Sin edad
+    
+    ProcesandoPago --> PagoAprobado: Tarjeta aprobada
+    PagoAprobado --> Completada
+    ProcesandoPago --> PagoRechazado: Tarjeta denegada
+    PagoRechazado --> EsperandoPago: Reintento
+    
+    Completada --> [*]
+</pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="usos" class="reveal">
+            <div class="glass-card p-6 sm:p-10">
+                <div class="flex items-center space-x-4 mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                        <span class="font-bold">5</span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white">Casos de Uso</h2>
+                </div>
+                <p class="text-gray-400 text-sm mb-4">Implementado con Flowchart LR (Mermaid no soporta usecaseDiagram nativo)</p>
+                <div class="mermaid-wrapper w-full overflow-x-auto bg-black/40 rounded-2xl p-4 border border-white/5">
+<pre class="mermaid">
+flowchart LR
+    %% Actores
+    Cajero([Cajero])
+    Gerente([Gerente/Dueño])
+    API([API Gobierno])
+
+    %% Sistema
+    subgraph Sistema Mercadito
+        UC1((Registrar Venta))
+        UC2((Ingresar DNI))
+        UC3((Obtener Edad))
+        UC4((Generar Reportes))
+        UC5((Consultar Patrones))
+    end
+
+    %% Relaciones Principales
+    Cajero --> UC1
+    Gerente --> UC4
+    Gerente --> UC5
+    UC3 --> API
+
+    %% Extend / Include
+    UC1 -. "extend (Si es Tarjeta)" .-> UC2
+    UC2 -. "include" .-> UC3
+</pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="dlr" class="reveal">
+            <div class="glass-card p-6 sm:p-10">
+                <div class="flex items-center space-x-4 mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                        <span class="font-bold">6</span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white">Diagrama Lógico Relacional</h2>
+                </div>
+                <div class="mermaid-wrapper w-full overflow-x-auto bg-black/40 rounded-2xl p-4 border border-white/5">
+<pre class="mermaid">
+erDiagram
+    CLIENTES ||--o{ VENTAS : "tiene"
+    VENTAS ||--|{ VENTAS_DETALLE : "incluye"
+    PRODUCTOS ||--o{ VENTAS_DETALLE : "forma"
+
+    CLIENTES {
+        int DNI PK
+        date FechaNacimiento
+    }
+    
+    VENTAS {
+        int ID_Venta PK
+        date Fecha
+        int DNI_Cliente FK
+    }
+    
+    PRODUCTOS {
+        int ID_Producto PK
+        string Nombre
+    }
+    
+    VENTAS_DETALLE {
+        int ID_Venta PK
+        int ID_Producto PK
+    }
+</pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="clases" class="reveal">
+            <div class="glass-card p-6 sm:p-10 mb-10">
+                <div class="flex items-center space-x-4 mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center shadow-lg shadow-violet-500/30">
+                        <span class="font-bold">7</span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white">Diagrama de Clases</h2>
+                </div>
+                <div class="mermaid-wrapper w-full overflow-x-auto bg-black/40 rounded-2xl p-4 border border-white/5">
+<pre class="mermaid">
+classDiagram
+    class Cliente {
+        -int dni
+        -Date fechaNacimiento
+        +getEdad() int
+    }
+    
+    class Producto {
+        -int idProducto
+        -String nombre
+        +getNombre() String
+    }
+    
+    class Transaccion {
+        -int idTransaccion
+        -Date fecha
+        -String metodoPago
+        -List~Producto~ productos
+        -Cliente cliente
+        +agregarProducto(Producto p) void
+        +setCliente(Cliente c) void
+        +getProductos() List~Producto~
+    }
+    
+    class GestorAPIGobierno {
+        +obtenerFechaNacimiento(int dni) Date
+    }
+    
+    class MotorDataMining {
+        +buscarPatrones(int edad, Date inicio, Date fin) List
+        -encontrarDuplas(List~Transaccion~ t) List
+        -encontrarTrios(List~Transaccion~ t) List
+        -encontrarCuaternas(List~Transaccion~ t) List
+    }
+
+    Cliente "1" <-- "*" Transaccion : "realiza"
+    Transaccion "1" *-- "1..*" Producto : "contiene"
+    GestorAPIGobierno ..> Cliente : "obtiene datos para"
+    MotorDataMining ..> Transaccion : "analiza"
+</pre>
+                </div>
+            </div>
+        </section>
+
+    </main>
 
     <script type="module">
-        // Usaremos directamente `window.lucide` que se carga en el <head>
+        // Importación de la última versión estable (11.x) usando ES Modules
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.esm.min.mjs';
         
-        // ==================== 1. MULTILENGUAJE ====================
-        const translations = {
-            es: {
-                home: "Inicio", explore: "Explorar", bookings: "Viajes", profile: "Perfil",
-                welcome: "Nova Hotels", slogan: "Experiencias únicas, momentos inolvidables",
-                featured: "Descubrí", wifi: "WiFi 6E", spa: "Spa & Relax", restaurant: "Gourmet",
-                exploreRooms: "Alojamientos", payEarly: "Abonar estadía", cancelRes: "Cancelar reserva",
-                payNow: "Pagar ahora", paid: "Pagado", unpaid: "Pendiente", randomCbu: "CBU generado",
-                confirmPayment: "Confirmar pago", simulatingPayment: "Procesando pago...", totalToPay: "Total a pagar",
-                paymentSuccess: "Pago acreditado con éxito", paymentFailed: "Error en el pago", cbuInfo: "Transferí a este CBU",
-                checkIn: "Llegada", checkOut: "Salida", guestName: "Nombre del huésped", reserve: "Reservar ahora",
-                available: "Reservar", occupied: "No disponible", invalidDates: "Fechas inválidas",
-                noBookings: "Aún no tenés viajes guardados", bookNow: "Buscar alojamiento", logout: "Cerrar sesión",
-                loginGoogle: "Continuar con Apple", orContinue: "Continuar como invitado",
-                changeLanguage: "Idioma", nights: "noches", cbuRandom: "CBU",
-                voiceSearch: "Te escucho...", copyCbu: "Copiar CBU", rating: "Excelente", reviews: "evaluaciones",
-                priceBreakdown: "Desglose del precio", subtotal: "Tarifa base", taxes: "Impuestos (10%)", total: "Total (ARS)",
-                confirmCancel: "¿Estás seguro que querés cancelar este viaje?",
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            securityLevel: 'loose', // Necesario a veces para renderizar HTML/Links internos de Mermaid
+            themeVariables: {
+                fontFamily: 'Inter, sans-serif',
+                primaryColor: '#2563eb',
+                primaryTextColor: '#f8fafc',
+                primaryBorderColor: '#3b82f6',
+                lineColor: '#64748b',
+                secondaryColor: '#1e293b',
+                tertiaryColor: '#0f172a'
             },
-            en: {
-                home: "Home", explore: "Explore", bookings: "Trips", profile: "Profile",
-                welcome: "Nova Hotels", slogan: "Unique experiences, unforgettable moments",
-                featured: "Discover", wifi: "WiFi 6E", spa: "Spa & Relax", restaurant: "Gourmet",
-                exploreRooms: "Stays", payEarly: "Pay stay", cancelRes: "Cancel booking",
-                payNow: "Pay now", paid: "Paid", unpaid: "Pending", randomCbu: "Generated CBU",
-                confirmPayment: "Confirm payment", simulatingPayment: "Processing payment...", totalToPay: "Total to pay",
-                paymentSuccess: "Payment received successfully", paymentFailed: "Payment error", cbuInfo: "Transfer to this CBU",
-                checkIn: "Check-in", checkOut: "Check-out", guestName: "Guest name", reserve: "Book now",
-                available: "Book", occupied: "Unavailable", invalidDates: "Invalid dates",
-                noBookings: "No trips booked yet", bookNow: "Find a stay", logout: "Sign out",
-                loginGoogle: "Continue with Apple", orContinue: "Continue as guest",
-                changeLanguage: "Language", nights: "nights", cbuRandom: "CBU",
-                voiceSearch: "I'm listening...", copyCbu: "Copy CBU", rating: "Excellent", reviews: "reviews",
-                priceBreakdown: "Price breakdown", subtotal: "Base fare", taxes: "Taxes (10%)", total: "Total",
-                confirmCancel: "Are you sure you want to cancel this trip?",
-            }
-        };
-        
-        let currentLang = localStorage.getItem('app_lang') || 'es';
-        const t = (key) => translations[currentLang][key] || key;
-        
-        // ==================== 2. BASE DE DATOS (MOCK) ====================
-        const HOTEL_ROOMS = [
-            { id: '101', name: { es: 'Suite Presidencial Vista al Mar', en: 'Ocean View Presidential Suite' }, type: { es: 'Suite de lujo', en: 'Luxury Suite' }, capacity: 4, price: 350000, image: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&q=80&w=800', rating: 4.96, reviews: 128 },
-            { id: '102', name: { es: 'Loft Moderno en el Centro', en: 'Modern Downtown Loft' }, type: { es: 'Departamento entero', en: 'Entire apartment' }, capacity: 2, price: 150000, image: 'https://images.unsplash.com/photo-1560185016-3ae1746b412e?auto=format&fit=crop&q=80&w=800', rating: 4.85, reviews: 94 },
-            { id: '103', name: { es: 'Cabaña Familiar en el Bosque', en: 'Family Cabin in the Woods' }, type: { es: 'Cabaña entera', en: 'Entire cabin' }, capacity: 6, price: 220000, image: 'https://images.unsplash.com/photo-1582719478250-c8940994cb4e?auto=format&fit=crop&q=80&w=800', rating: 4.92, reviews: 76 },
-            { id: '201', name: { es: 'Estudio Ejecutivo Minimalista', en: 'Minimalist Executive Studio' }, type: { es: 'Estudio privado', en: 'Private studio' }, capacity: 1, price: 110000, image: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&q=80&w=800', rating: 4.75, reviews: 52 },
-        ];
-        
-        const today = new Date().toISOString().split('T')[0];
-        const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-        
-        // ==================== 3. ARQUITECTURA (JS Senior) ====================
-        class NovaApp {
-            constructor() {
-                this.user = null;
-                this.allBookings = [];
-                this.userBookings = [];
-                this.activeTab = 'home';
-                this.loading = true;
-                this.searchDates = { checkIn: today, checkOut: tomorrow };
-                
-                // Estados de UI Modales
-                this.bookingModal = { isOpen: false, room: null };
-                this.guestName = '';
-                this.paymentModal = { open: false, bookingId: null, cbu: '', amount: 0 };
-                this.isSubmitting = false;
-                this.voiceActive = false;
-                
-                // Conexión a Base de Datos LocalForage (IndexedDB)
-                this.db = localforage.createInstance({ name: "NovaDB", storeName: "bookings" });
-                this.userDb = localforage.createInstance({ name: "NovaDB", storeName: "user" });
-                
-                this.render(); // Mostramos el spinner de entrada
-                this.init();
-            }
-            
-            async init() {
-                try {
-                    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout DB local")), 1500));
-                    await Promise.race([this.loadData(), timeout]);
-                } catch (error) {
-                    console.warn('DB Error o Bloqueo del Navegador. Entrando en Modo RAM:', error);
-                    this.user = null;
-                    this.allBookings = [];
-                } finally {
-                    this.loading = false;
-                    this.render();
-                }
-            }
-            
-            async loadData() {
-                this.user = await this.userDb.getItem('currentUser').catch(() => null);
-                this.allBookings = await this.db.getItem('all_bookings').catch(() => []) || [];
-                if (this.user) {
-                    this.userBookings = this.allBookings.filter(b => b.userId === this.user.uid);
-                }
-            }
-            
-            async saveAllBookings() {
-                await this.db.setItem('all_bookings', this.allBookings).catch(() => console.warn('Modo sin persistencia activado'));
-                if (this.user) {
-                    this.userBookings = this.allBookings.filter(b => b.userId === this.user.uid);
-                }
-            }
-            
-            isRoomAvailable(roomId, checkIn, checkOut) {
-                if (checkIn >= checkOut) return false;
-                return !this.allBookings.some(b => b.roomId === roomId && b.checkIn < checkOut && b.checkOut > checkIn);
-            }
-            
-            getRoomStatus(roomId) {
-                const { checkIn, checkOut } = this.searchDates;
-                const available = this.isRoomAvailable(roomId, checkIn, checkOut);
-                return { available };
-            }
-            
-            // ==================== INTERACCIONES (Multimodal & UI) ====================
-            refreshIcons() {
-                if (window.lucide && window.lucide.createIcons) {
-                    window.lucide.createIcons();
-                }
-            }
+            flowchart: { curve: 'basis' }
+        });
 
-            showToast(message, type = 'success') {
-                const toast = document.getElementById('toast-root');
-                const icon = document.getElementById('toast-icon');
-                const msg = document.getElementById('toast-message');
-                
-                if(!toast || !icon) return;
-                
-                // FIX QA Crítico: Las etiquetas SVG de Lucide fallan si intentás modificarles la propiedad .className
-                // Se debe usar setAttribute('class', ...) obligatoriamente.
-                icon.setAttribute('data-lucide', type === 'success' ? 'check-circle-2' : type === 'error' ? 'alert-circle' : 'info');
-                icon.setAttribute('class', `w-5 h-5 ${type === 'success' ? 'text-green-400' : type === 'error' ? 'text-red-400' : 'text-blue-400'}`);
-                
-                msg.innerText = message;
-                this.refreshIcons();
-                
-                toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 3500);
-            }
-            
-            haptic(style = 'light') {
-                if (navigator.vibrate) {
-                    if (style === 'light') navigator.vibrate(10);
-                    if (style === 'heavy') navigator.vibrate([20, 30, 20]);
-                }
-            }
-            
-            startVoiceSearch() {
-                this.haptic('heavy');
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                if (!SpeechRecognition) {
-                    this.showToast("Búsqueda por voz no soportada en tu navegador", "error");
-                    return;
-                }
-                const recognition = new SpeechRecognition();
-                recognition.lang = currentLang === 'es' ? 'es-AR' : 'en-US';
-                
-                recognition.onstart = () => {
-                    this.voiceActive = true;
-                    this.render();
-                };
-                
-                recognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript.toLowerCase();
-                    this.showToast(`"${transcript}"`, "info");
-                    
-                    setTimeout(() => {
-                        this.showToast("Procesando con IA...", "success");
-                        this.activeTab = 'explore';
-                        this.render();
-                    }, 1500);
-                };
-                
-                recognition.onend = () => {
-                    this.voiceActive = false;
-                    this.render();
-                };
-                
-                recognition.start();
-            }
-            
-            // ==================== LÓGICA DE NEGOCIO ====================
-            async handleLogin(type) {
-                this.haptic();
-                this.loading = true; this.render();
-                
-                setTimeout(async () => {
-                    const uid = type === 'google' ? `apple_${Date.now()}` : `guest_${Date.now()}`;
-                    const name = type === 'google' ? 'Usuario iOS' : 'Viajero Frecuente';
-                    const user = {
-                        uid, displayName: name,
-                        email: `${name.toLowerCase().replace(' ', '')}@icloud.com`,
-                        isGuest: type !== 'google',
-                        avatar: type === 'google' ? '🍎' : '👤'
-                    };
-                    
-                    await this.userDb.setItem('currentUser', user).catch(() => console.warn('Usando memoria RAM temporal'));
-                    this.user = user;
-                    await this.loadData();
-                    this.showToast(`${t('welcome')}, ${name}`);
-                    this.loading = false; this.render();
-                }, 800);
-            }
-            
-            async handleLogout() {
-                this.haptic('heavy');
-                await this.userDb.removeItem('currentUser').catch(() => {});
-                this.user = null;
-                this.userBookings = [];
-                this.showToast("Sesión cerrada correctamente", "info");
-                this.render();
-            }
-            
-            handleNameInput(value) {
-                this.guestName = value;
-                const btn = document.getElementById('bookConfirmBtn');
-                if (btn) btn.disabled = value.trim() === '';
-            }
+        // Intersection Observer para animaciones de scroll
+        document.addEventListener("DOMContentLoaded", () => {
+            const reveals = document.querySelectorAll(".reveal");
 
-            async handleBookRoom(e) {
-                e.preventDefault();
-                if (!this.guestName.trim()) return;
-                
-                this.haptic();
-                this.isSubmitting = true;
-                
-                const btn = document.getElementById('bookConfirmBtn');
-                if(btn) btn.innerHTML = '<div class="spinner spinner-white"></div>';
-                
-                setTimeout(async () => {
-                    const room = this.bookingModal.room;
-                    const nights = Math.ceil((new Date(this.searchDates.checkOut) - new Date(this.searchDates.checkIn)) / 86400000);
-                    const totalAmount = room.price * nights * 1.1;
-                    
-                    if (!this.isRoomAvailable(room.id, this.searchDates.checkIn, this.searchDates.checkOut)) {
-                        this.showToast(t('occupied'), "error");
-                        this.isSubmitting = false;
-                        this.closeModal();
-                        return;
+            const revealOnScroll = () => {
+                const windowHeight = window.innerHeight;
+                const elementVisible = 100;
+
+                reveals.forEach((reveal) => {
+                    const elementTop = reveal.getBoundingClientRect().top;
+                    if (elementTop < windowHeight - elementVisible) {
+                        reveal.classList.add("active");
                     }
-                    
-                    const newBooking = {
-                        id: 'BK-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
-                        roomId: room.id,
-                        roomName: room.name,
-                        guestName: this.guestName,
-                        checkIn: this.searchDates.checkIn,
-                        checkOut: this.searchDates.checkOut,
-                        userId: this.user.uid,
-                        paid: false,
-                        amount: totalAmount,
-                        nights,
-                        createdAt: new Date().toISOString()
-                    };
-                    
-                    this.allBookings.push(newBooking);
-                    await this.saveAllBookings();
-                    
-                    this.isSubmitting = false;
-                    this.closeModal();
-                    this.activeTab = 'bookings';
-                    this.showToast("¡Viaje confirmado! Prepará las valijas.", "success");
-                    this.render();
-                }, 1200);
-            }
-            
-            async handleCancelBooking(id) {
-                if (!confirm(t('confirmCancel'))) return;
-                this.haptic('heavy');
-                
-                this.allBookings = this.allBookings.filter(b => b.id !== id);
-                await this.saveAllBookings();
-                this.showToast("Reserva cancelada y reembolsada", "info");
-                this.render();
-            }
-            
-            openPayment(bookingId, amount) {
-                this.haptic();
-                const cbu = `0000${Math.floor(1000 + Math.random() * 9000)}3000${Math.floor(10000000 + Math.random() * 90000000)}`;
-                this.paymentModal = { open: true, bookingId, amount, cbu };
-                this.render();
-            }
-            
-            closePayment() {
-                this.paymentModal.open = false;
-                this.render();
-            }
-            
-            copyCbu() {
-                navigator.clipboard.writeText(this.paymentModal.cbu);
-                this.showToast("CBU copiado al portapapeles", "success");
-                this.haptic();
-            }
-            
-            async processPayment() {
-                this.haptic();
-                this.isSubmitting = true;
-                const btn = document.getElementById('payConfirmBtn');
-                if(btn) btn.innerHTML = '<div class="spinner spinner-white mx-auto"></div>';
-                
-                setTimeout(async () => {
-                    const bookingIndex = this.allBookings.findIndex(b => b.id === this.paymentModal.bookingId);
-                    if (bookingIndex !== -1) {
-                        this.allBookings[bookingIndex].paid = true;
-                        await this.saveAllBookings();
-                        this.showToast(t('paymentSuccess'), "success");
-                    }
-                    this.isSubmitting = false;
-                    this.closePayment();
-                    this.render();
-                }, 1500);
-            }
-            
-            openModal(roomId) {
-                this.haptic();
-                const room = HOTEL_ROOMS.find(r => r.id === roomId);
-                this.bookingModal = { isOpen: true, room };
-                this.guestName = this.user?.displayName || '';
-                this.render();
-            }
-            
-            closeModal() {
-                if (this.isSubmitting) return;
-                this.bookingModal.isOpen = false;
-                this.render();
-            }
-            
-            setTab(tab) {
-                this.haptic();
-                this.activeTab = tab;
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                this.render();
-            }
-            
-            updateDate(field, value) {
-                this.searchDates[field] = value;
-                this.render();
-            }
-            
-            toggleLang() {
-                this.haptic();
-                currentLang = currentLang === 'es' ? 'en' : 'es';
-                localStorage.setItem('app_lang', currentLang);
-                this.render();
-            }
-            
-            // ==================== RENDERIZADO (HTML Expert) ====================
-            render() {
-                const root = document.getElementById('app-root');
-                if (!root) return; 
-                
-                if (this.loading) {
-                    root.innerHTML = `<div class="min-h-screen flex items-center justify-center bg-[#F7F7F7]"><div class="spinner border-t-black"></div></div>`;
-                    return;
-                }
-                
-                if (!this.user) {
-                    root.innerHTML = this.renderLogin();
-                    this.refreshIcons();
-                    return;
-                }
-                
-                let content = '';
-                if (this.activeTab === 'home') content = this.renderHome();
-                if (this.activeTab === 'explore') content = this.renderExplore();
-                if (this.activeTab === 'bookings') content = this.renderBookings();
-                if (this.activeTab === 'profile') content = this.renderProfile();
-                
-                root.innerHTML = content + this.renderTabBar() + this.renderModals();
-                this.refreshIcons();
-            }
-            
-            renderLogin() {
-                return `
-                    <div class="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1542314831-c6a4d14d8c85?auto=format&fit=crop&q=80&w=800')">
-                        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-                        <div class="relative z-10 w-full max-w-sm glass-card rounded-[32px] p-8 fade-up mx-auto">
-                            <div class="w-20 h-20 bg-black text-white rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-2xl">
-                                <i data-lucide="building-2" class="w-10 h-10"></i>
-                            </div>
-                            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">${t('welcome')}</h1>
-                            <p class="text-gray-600 font-medium mt-2 mb-10">${t('slogan')}</p>
-                            
-                            <div class="space-y-4">
-                                <button onclick="window.app.handleLogin('google')" class="btn-haptic w-full flex items-center justify-center gap-3 bg-black text-white font-semibold py-4 rounded-[20px] shadow-lg">
-                                    <i data-lucide="apple" class="w-5 h-5 fill-current"></i> ${t('loginGoogle')}
-                                </button>
-                                <button onclick="window.app.handleLogin('guest')" class="btn-haptic w-full flex items-center justify-center gap-3 bg-white/80 backdrop-blur text-gray-800 font-semibold py-4 rounded-[20px] border border-white">
-                                    ${t('orContinue')}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            renderHome() {
-                return `
-                    <div class="space-y-8 px-6 md:px-12 pt-safe mt-6 fade-up pb-32">
-                        <div class="flex justify-between items-end">
-                            <div>
-                                <h1 class="text-4xl md:text-5xl font-black tracking-tight text-gray-900">Nova.</h1>
-                                <p class="text-sm md:text-base text-gray-500 font-medium mt-1">Donde empieza tu viaje</p>
-                            </div>
-                            <div class="w-14 h-14 bg-gradient-to-br from-gray-900 to-gray-700 text-white rounded-[20px] flex items-center justify-center text-2xl shadow-lg border border-gray-600">${this.user?.avatar}</div>
-                        </div>
-                        
-                        <div class="relative rounded-[32px] overflow-hidden h-96 md:h-[450px] shadow-2xl group">
-                            <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=1200" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-8 md:p-12">
-                                <span class="bg-white/20 backdrop-blur-md text-white text-xs md:text-sm font-bold px-3 py-1.5 rounded-full w-max mb-3 uppercase tracking-wider">Destacado</span>
-                                <h2 class="text-3xl md:text-5xl font-bold text-white leading-tight">Tu escapada<br>perfecta</h2>
-                                <button onclick="window.app.setTab('explore')" class="btn-haptic mt-6 bg-white text-black px-6 py-3.5 rounded-full font-bold text-sm w-max flex items-center gap-2 shadow-lg hover:scale-105 transition-transform">
-                                    ${t('bookNow')} <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <div class="flex justify-between items-center mb-5">
-                                <h3 class="text-xl md:text-2xl font-bold text-gray-900">${t('featured')}</h3>
-                            </div>
-                            <div class="grid grid-cols-3 gap-4 md:gap-8">
-                                <div class="glass-card rounded-[24px] p-4 text-center btn-haptic flex flex-col items-center justify-center aspect-square md:aspect-auto md:h-40 cursor-pointer" onclick="window.app.showToast('Conectividad en todo el hotel')">
-                                    <i data-lucide="wifi" class="w-7 h-7 text-blue-500 mb-2 md:w-10 md:h-10 md:mb-4"></i>
-                                    <p class="text-[11px] md:text-sm font-bold text-gray-600 uppercase tracking-wide">WiFi 6E</p>
-                                </div>
-                                <div class="glass-card rounded-[24px] p-4 text-center btn-haptic flex flex-col items-center justify-center aspect-square md:aspect-auto md:h-40 cursor-pointer" onclick="window.app.showToast('Reservas en recepción')">
-                                    <i data-lucide="sparkles" class="w-7 h-7 text-purple-500 mb-2 md:w-10 md:h-10 md:mb-4"></i>
-                                    <p class="text-[11px] md:text-sm font-bold text-gray-600 uppercase tracking-wide">Spa</p>
-                                </div>
-                                <div class="glass-card rounded-[24px] p-4 text-center btn-haptic flex flex-col items-center justify-center aspect-square md:aspect-auto md:h-40 cursor-pointer" onclick="window.app.showToast('Menú Internacional')">
-                                    <i data-lucide="utensils" class="w-7 h-7 text-orange-500 mb-2 md:w-10 md:h-10 md:mb-4"></i>
-                                    <p class="text-[11px] md:text-sm font-bold text-gray-600 uppercase tracking-wide">Cocina</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            renderExplore() {
-                const isInvalid = this.searchDates.checkIn >= this.searchDates.checkOut;
-                return `
-                    <div class="px-6 md:px-12 pt-safe mt-6 fade-up pb-32">
-                        <h1 class="text-4xl md:text-5xl font-black tracking-tight text-gray-900 mb-6">${t('exploreRooms')}</h1>
-                        
-                        <!-- Buscador estilo Airbnb -->
-                        <div class="bg-white rounded-[28px] p-2 flex items-center shadow-lg border border-gray-100 mb-8 md:max-w-xl">
-                            <div class="flex-1 flex text-left relative pl-4 pr-2 py-2">
-                                <div class="w-full">
-                                    <label class="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider block">${t('checkIn')}</label>
-                                    <input type="date" value="${this.searchDates.checkIn}" onchange="window.app.updateDate('checkIn', this.value)" class="w-full text-sm md:text-base font-semibold text-gray-900 outline-none bg-transparent cursor-pointer" min="${today}">
-                                </div>
-                                <div class="w-px bg-gray-200 mx-2"></div>
-                                <div class="w-full">
-                                    <label class="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider block">${t('checkOut')}</label>
-                                    <input type="date" value="${this.searchDates.checkOut}" onchange="window.app.updateDate('checkOut', this.value)" class="w-full text-sm md:text-base font-semibold text-gray-900 outline-none bg-transparent cursor-pointer" min="${this.searchDates.checkIn}">
-                                </div>
-                            </div>
-                            <button onclick="window.app.startVoiceSearch()" class="btn-haptic w-12 h-12 md:w-14 md:h-14 rounded-[20px] ${this.voiceActive ? 'bg-red-500 animate-pulse' : 'bg-[#FF385C]'} text-white flex items-center justify-center shadow-md flex-shrink-0 hover:bg-[#E31C5F] transition-colors">
-                                <i data-lucide="${this.voiceActive ? 'radio' : 'mic'}" class="w-5 h-5 md:w-6 md:h-6"></i>
-                            </button>
-                        </div>
-                        
-                        <div class="space-y-8 md:grid md:grid-cols-2 md:gap-8 md:space-y-0">
-                            ${HOTEL_ROOMS.map(room => {
-                                const status = this.getRoomStatus(room.id);
-                                const name = currentLang === 'es' ? room.name.es : room.name.en;
-                                return `
-                                    <div class="group btn-haptic cursor-pointer" onclick="${status.available && !isInvalid ? `window.app.openModal('${room.id}')` : ''}">
-                                        <div class="relative rounded-[24px] overflow-hidden aspect-[4/3] mb-4">
-                                            <img src="${room.image}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
-                                            <div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full font-bold text-sm shadow-sm flex items-center gap-1">
-                                                <i data-lucide="star" class="w-4 h-4 text-black fill-current"></i> ${room.rating}
-                                            </div>
-                                            ${!status.available && !isInvalid ? `
-                                                <div class="absolute inset-0 bg-white/50 backdrop-blur-[2px] flex items-center justify-center">
-                                                    <span class="bg-black text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-xl">${t('occupied')}</span>
-                                                </div>
-                                            ` : ''}
-                                        </div>
-                                        <div>
-                                            <div class="flex justify-between items-start">
-                                                <h3 class="text-[17px] md:text-lg font-bold text-gray-900 leading-tight">${name}</h3>
-                                            </div>
-                                            <p class="text-[15px] md:text-base text-gray-500 mt-1">${room.type[currentLang]} · ${room.capacity} huéspedes</p>
-                                            <p class="text-[15px] md:text-base font-medium text-gray-900 mt-2">
-                                                <span class="font-bold">ARS $${room.price.toLocaleString('es-AR')}</span> <span class="text-gray-500 font-normal">/ noche</span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-            
-            renderBookings() {
-                return `
-                    <div class="px-6 md:px-12 pt-safe mt-6 fade-up pb-32 min-h-screen">
-                        <h1 class="text-4xl md:text-5xl font-black tracking-tight text-gray-900 mb-8">${t('bookings')}</h1>
-                        
-                        ${this.userBookings.length === 0 ? `
-                            <div class="flex flex-col items-center justify-center h-72 text-center bg-white rounded-[32px] border border-gray-100 shadow-sm p-8">
-                                <div class="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6">
-                                    <i data-lucide="plane" class="w-10 h-10 text-gray-300"></i>
-                                </div>
-                                <h3 class="text-xl md:text-2xl font-bold text-gray-900">${t('noBookings')}</h3>
-                                <p class="text-gray-500 mt-2 mb-6">Tus próximas aventuras aparecerán aquí.</p>
-                                <button onclick="window.app.setTab('explore')" class="btn-haptic px-8 py-3.5 bg-black text-white rounded-[20px] font-bold shadow-lg hover:bg-gray-800 transition-colors">${t('bookNow')}</button>
-                            </div>
-                        ` : `
-                            <div class="space-y-6 md:grid md:grid-cols-2 md:gap-8 md:space-y-0">
-                                ${this.userBookings.map(b => {
-                                    const name = currentLang === 'es' ? b.roomName.es || b.roomName : b.roomName.en || b.roomName;
-                                    return `
-                                        <div class="bg-white rounded-[32px] p-6 md:p-8 shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col justify-between">
-                                            <div>
-                                                <div class="flex justify-between items-center mb-5">
-                                                    <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${b.paid ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
-                                                        ${b.paid ? t('paid') : t('unpaid')}
-                                                    </span>
-                                                    <button onclick="window.app.handleCancelBooking('${b.id}')" class="text-gray-400 hover:text-red-500 transition-colors" title="Cancelar Reserva">
-                                                        <i data-lucide="x-circle" class="w-6 h-6"></i>
-                                                    </button>
-                                                </div>
-                                                
-                                                <h3 class="text-xl font-bold text-gray-900 mb-1">${name}</h3>
-                                                <p class="text-sm text-gray-500 font-mono mb-6">Ref: ${b.id}</p>
-                                                
-                                                <div class="flex items-center gap-4 bg-[#F7F7F7] p-4 rounded-[24px] mb-6">
-                                                    <div class="flex-1">
-                                                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">${t('checkIn')}</p>
-                                                        <p class="font-bold text-gray-900 mt-1">${b.checkIn.split('-').reverse().join('/')}</p>
-                                                    </div>
-                                                    <div class="w-px h-8 bg-gray-200"></div>
-                                                    <div class="flex-1">
-                                                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">${t('checkOut')}</p>
-                                                        <p class="font-bold text-gray-900 mt-1">${b.checkOut.split('-').reverse().join('/')}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            ${!b.paid ? `
-                                                <div class="border-t border-gray-100 pt-5 mt-auto">
-                                                    <div class="flex justify-between items-center mb-4">
-                                                        <span class="text-gray-500 font-medium">Total a pagar</span>
-                                                        <span class="text-xl font-bold">ARS $${b.amount.toLocaleString('es-AR')}</span>
-                                                    </div>
-                                                    <button onclick="window.app.openPayment('${b.id}', ${b.amount})" class="btn-haptic w-full py-4 bg-black text-white rounded-[20px] font-bold flex justify-center items-center gap-2 hover:bg-gray-800 transition-colors">
-                                                        <i data-lucide="credit-card" class="w-5 h-5"></i> ${t('payNow')}
-                                                    </button>
-                                                </div>
-                                            ` : `
-                                                <div class="border-t border-gray-100 pt-5 mt-auto flex justify-between items-center">
-                                                    <span class="text-gray-500 font-medium">Abonado</span>
-                                                    <span class="text-xl font-bold text-green-600">ARS $${b.amount.toLocaleString('es-AR')}</span>
-                                                </div>
-                                            `}
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        `}
-                    </div>
-                `;
-            }
-            
-            renderProfile() {
-                return `
-                    <div class="space-y-6 px-6 md:px-12 pt-safe mt-6 fade-up pb-32">
-                        <h1 class="text-4xl md:text-5xl font-black tracking-tight text-gray-900">${t('profile')}</h1>
-                        
-                        <div class="bg-white rounded-[32px] p-8 md:p-12 text-center shadow-lg border border-gray-100 mt-10 md:mt-16 relative md:max-w-2xl md:mx-auto">
-                            <div class="w-28 h-28 md:w-32 md:h-32 bg-gradient-to-br from-gray-900 to-black text-white rounded-[28px] md:rounded-[32px] flex items-center justify-center text-5xl md:text-6xl font-bold mx-auto shadow-2xl absolute -top-14 md:-top-16 left-1/2 -translate-x-1/2 border-4 border-[#F7F7F7]">
-                                ${this.user?.avatar}
-                            </div>
-                            <div class="pt-12 md:pt-16">
-                                <h2 class="text-2xl md:text-3xl font-bold text-gray-900">${this.user?.displayName}</h2>
-                                <p class="text-gray-500 font-medium mt-1 md:text-lg">${this.user?.email}</p>
-                            </div>
-                        </div>
+                });
+            };
 
-                        <div class="bg-white rounded-[32px] overflow-hidden shadow-sm border border-gray-100 mt-6 md:max-w-2xl md:mx-auto">
-                            <div class="flex justify-between items-center p-5 md:p-6 border-b border-gray-50">
-                                <div class="flex items-center gap-4">
-                                    <div class="bg-blue-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center"><i data-lucide="globe" class="w-5 h-5 text-blue-500"></i></div>
-                                    <span class="font-semibold text-gray-900 text-lg">${t('changeLanguage')}</span>
-                                </div>
-                                <button onclick="window.app.toggleLang()" class="btn-haptic bg-gray-100 hover:bg-gray-200 px-5 py-2 rounded-[14px] font-bold text-sm uppercase text-gray-700 transition-colors">${currentLang}</button>
-                            </div>
-                            <button onclick="window.app.handleLogout()" class="btn-haptic w-full p-5 md:p-6 flex justify-between items-center text-red-500 bg-red-50/30 hover:bg-red-50 transition-colors">
-                                <div class="flex items-center gap-4">
-                                    <div class="bg-red-100 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center"><i data-lucide="log-out" class="w-5 h-5 text-red-600"></i></div>
-                                    <span class="font-semibold text-lg">${t('logout')}</span>
-                                </div>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }
+            window.addEventListener("scroll", revealOnScroll);
+            revealOnScroll();
             
-            renderTabBar() {
-                return `
-                    <nav class="fixed bottom-0 left-0 right-0 glass-nav pb-safe pt-3 px-6 flex justify-around z-40 max-w-lg mx-auto md:max-w-md md:bottom-8 md:rounded-[32px] md:border border-gray-200 md:shadow-2xl md:pb-2 md:pt-2">
-                        ${['home', 'explore', 'bookings', 'profile'].map(tab => `
-                            <button onclick="window.app.setTab('${tab}')" class="flex flex-col items-center p-2 transition-colors relative ${this.activeTab === tab ? 'text-[#FF385C]' : 'text-gray-400 hover:text-gray-600'}">
-                                <i data-lucide="${tab === 'home' ? 'compass' : tab === 'explore' ? 'search' : tab === 'bookings' ? 'heart' : 'user'}" class="w-7 h-7 md:w-6 md:h-6 ${this.activeTab === tab ? 'fill-current' : ''}"></i>
-                                <span class="text-[10px] md:text-xs font-bold mt-1">${t(tab)}</span>
-                                ${tab === 'bookings' && this.userBookings.length > 0 ? `<span class="absolute top-1 md:top-0 right-3 md:right-2 w-2.5 h-2.5 bg-[#FF385C] rounded-full border-2 border-white"></span>` : ''}
-                            </button>
-                        `).join('')}
-                    </nav>
-                `;
-            }
-            
-            renderModals() {
-                let html = '';
-                if (this.bookingModal.isOpen) {
-                    const room = this.bookingModal.room;
-                    const name = currentLang === 'es' ? room.name.es : room.name.en;
-                    const nights = Math.ceil((new Date(this.searchDates.checkOut) - new Date(this.searchDates.checkIn)) / 86400000);
-                    const subtotal = room.price * nights;
-                    const taxes = Math.round(subtotal * 0.1);
-                    const total = subtotal + taxes;
-                    
-                    html += `
-                        <div class="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-                            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onclick="window.app.closeModal()"></div>
-                            <div class="relative w-full max-w-lg md:max-w-md bg-white rounded-t-[40px] md:rounded-[40px] shadow-2xl slide-up-modal pb-safe md:pb-6 flex flex-col max-h-[90vh]">
-                                <div class="p-4 flex justify-center flex-shrink-0 md:hidden">
-                                    <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
-                                </div>
-                                <div class="overflow-y-auto px-6 pb-6 md:pt-8 no-scrollbar">
-                                    <h3 class="text-2xl font-black text-gray-900 mb-2">${name}</h3>
-                                    <div class="flex items-center gap-2 text-sm text-gray-600 font-medium mb-6">
-                                        <i data-lucide="star" class="w-4 h-4 fill-current text-[#FF385C]"></i> ${room.rating} · ${room.type[currentLang]}
-                                    </div>
-
-                                    <div class="bg-gray-50 rounded-[24px] p-5 mb-6 border border-gray-100">
-                                        <h4 class="font-bold text-gray-900 mb-3">${t('priceBreakdown')}</h4>
-                                        <div class="flex justify-between text-[15px] text-gray-600 mb-2">
-                                            <span>ARS $${room.price.toLocaleString('es-AR')} x ${nights} ${t('nights')}</span>
-                                            <span>$${subtotal.toLocaleString('es-AR')}</span>
-                                        </div>
-                                        <div class="flex justify-between text-[15px] text-gray-600 mb-4 pb-4 border-b border-gray-200">
-                                            <span>${t('taxes')}</span>
-                                            <span>$${taxes.toLocaleString('es-AR')}</span>
-                                        </div>
-                                        <div class="flex justify-between text-lg font-black text-gray-900">
-                                            <span>${t('total')}</span>
-                                            <span>$${total.toLocaleString('es-AR')}</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="mb-6">
-                                        <label class="block text-sm font-bold text-gray-900 mb-2">${t('guestName')}</label>
-                                        <input type="text" value="${this.guestName}" oninput="window.app.handleNameInput(this.value)" class="w-full bg-white border-2 border-gray-200 rounded-[16px] p-4 font-medium text-gray-900 focus:outline-none focus:border-black transition-colors text-lg" placeholder="Ej. Lionel Messi">
-                                    </div>
-
-                                    <button id="bookConfirmBtn" onclick="window.app.handleBookRoom(event)" ${!this.guestName ? 'disabled' : ''} class="btn-haptic w-full py-4 bg-[#FF385C] text-white rounded-[20px] font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:bg-gray-300 shadow-lg shadow-red-200 transition-all hover:bg-[#E31C5F]">
-                                        ${t('reserve')}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                if (this.paymentModal.open) {
-                    html += `
-                        <div class="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-                            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="window.app.closePayment()"></div>
-                            <div class="relative w-full max-w-lg md:max-w-md bg-white rounded-t-[40px] md:rounded-[40px] p-8 shadow-2xl slide-up-modal pb-safe md:pb-8 text-center">
-                                <div class="w-20 h-20 bg-gray-50 border border-gray-100 text-gray-900 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-sm">
-                                    <i data-lucide="landmark" class="w-10 h-10"></i>
-                                </div>
-                                <h3 class="text-xl font-bold text-gray-500 mb-1">${t('totalToPay')}</h3>
-                                <p class="text-5xl font-black text-gray-900 tracking-tight mb-8">ARS $${this.paymentModal.amount.toLocaleString('es-AR')}</p>
-                                
-                                <div class="bg-gray-50 rounded-[24px] p-6 mb-8 text-left border border-gray-100">
-                                    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">${t('cbuInfo')}</p>
-                                    <div class="flex justify-between items-center bg-white p-3 rounded-[16px] border border-gray-200">
-                                        <code class="font-mono font-bold text-gray-900 text-base md:text-lg">${this.paymentModal.cbu}</code>
-                                        <button onclick="window.app.copyCbu()" class="text-gray-600 bg-gray-100 p-2.5 rounded-xl hover:bg-gray-200 transition-colors"><i data-lucide="copy" class="w-5 h-5"></i></button>
-                                    </div>
-                                </div>
-
-                                <button id="payConfirmBtn" onclick="window.app.processPayment()" class="btn-haptic w-full py-4 bg-black text-white rounded-[20px] font-bold text-lg shadow-lg hover:bg-gray-800 transition-colors">
-                                    ${t('confirmPayment')}
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }
-                return html;
-            }
-        }
-        
-        // Iniciar la magia
-        window.app = new NovaApp();
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+        });
     </script>
 </body>
 </html>
